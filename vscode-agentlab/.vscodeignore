@@ -1,0 +1,7 @@
+.vscode/**
+test/**
+**/*.test.js
+.playwright-mcp/**
+agentlab-*.png
+**/.DS_Store
+.gitignore
