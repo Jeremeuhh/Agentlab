@@ -92,3 +92,35 @@ test("isolation d'erreur : un agent qui plante n'arrête pas le pipeline", async
   assert.equal(outputs.good, "ok");
   assert.ok(outputs.bad.includes("a échoué"));
 });
+
+test("HITL : le moteur attend askHuman puis injecte les réponses", async () => {
+  const askForQuestions = async (prompt) =>
+    prompt.includes("QGEN") ? '{"questions":["Q1","Q2"]}' : "final";
+  const order = [];
+  const askHuman = async ({ questions }) => {
+    order.push("human");
+    assert.deepEqual(questions, ["Q1", "Q2"]);
+    return { answers: ["A1", "A2"] };
+  };
+  const pipeline = {
+    name: "hitl",
+    nodes: [
+      { id: "e", type: "entree", name: "In" },
+      { id: "q", type: "llm", name: "Gen", prompt: "QGEN" },
+      { id: "h", type: "hitl", name: "Cadrage" },
+      { id: "s", type: "sortie", name: "Out" },
+    ],
+    edges: [["e", "q"], ["q", "h"], ["h", "s"]],
+  };
+  const written = [];
+  const outputs = await runPipeline(pipeline, "x", {
+    ask: askForQuestions,
+    askHuman,
+    writeOutput: async (f, c) => { order.push("write"); written.push(c); },
+  });
+  assert.ok(outputs.h.includes("R : A1"));
+  assert.ok(outputs.h.includes("R : A2"));
+  // askHuman a été awaité AVANT l'écriture de la sortie
+  assert.deepEqual(order, ["human", "write"]);
+  assert.ok(written[0].includes("R : A1"));
+});
