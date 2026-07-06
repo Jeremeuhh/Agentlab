@@ -88,23 +88,40 @@
     animation:flow 1s linear infinite}
   @keyframes flow{to{stroke-dashoffset:-26}}
 
-  .node{position:absolute;width:176px;background:var(--card);border:1px solid var(--hair);
-    border-radius:12px;box-shadow:var(--shadow);padding:9px 11px 10px;cursor:grab;
-    user-select:none;display:flex;flex-direction:column;gap:4px;
-    border-top:3px solid var(--nc,var(--line))}
+  .node{position:absolute;width:184px;background:var(--card);border:1px solid var(--hair);
+    border-radius:8px;box-shadow:var(--shadow);padding:10px 11px;cursor:grab;
+    user-select:none;display:flex;flex-direction:column;gap:4px;outline:none}
+  .node::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:8px 0 0 8px;
+    background:var(--nc,var(--line))}
+  .node[data-type=entree]::after{left:0;right:0;bottom:auto;width:auto;height:3px;border-radius:8px 8px 0 0}
+  .node[data-type=sortie]::after{top:auto;left:0;right:0;width:auto;height:3px;border-radius:0 0 8px 8px}
+  .node[data-type=hitl]::after{background:repeating-linear-gradient(var(--nc) 0 4px,transparent 4px 8px)}
+  .node:focus-visible{box-shadow:0 0 0 2px var(--ring),var(--shadow)}
   .node:active{cursor:grabbing}
-  .node.selected{border-color:var(--nc);box-shadow:0 0 0 3px var(--ring),var(--shadow)}
-  .node.running{box-shadow:0 0 0 3px color-mix(in srgb,var(--llm) 45%,transparent),var(--shadow)}
-  .node.done{border-color:var(--ok)}
-  .node.error{border-color:var(--err)}
+  .node{transition:transform 120ms ease-out, box-shadow 120ms ease-out, border-color 180ms ease-out}
+  .node:hover{transform:translateY(-1px)}
+  .node.selected{border-color:var(--nc);box-shadow:0 0 0 2px var(--ring),var(--shadow)}
+  .node.running{border-color:var(--run);animation:pulse 1.6s ease-in-out infinite alternate}
+  .node.done{border-color:var(--ok);animation:flashdone 420ms ease-out}
+  .node.error{border-color:var(--err);animation:shake 200ms ease-out}
+  @keyframes pulse{
+    from{box-shadow:0 0 0 2px color-mix(in srgb,var(--run) 25%,transparent),var(--shadow)}
+    to{box-shadow:0 0 0 3px color-mix(in srgb,var(--run) 70%,transparent),var(--shadow)}}
+  @keyframes flashdone{
+    0%{box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 70%,transparent),var(--shadow)}
+    100%{box-shadow:0 0 0 0 transparent,var(--shadow)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+  .node .stat .mk{display:inline-block;animation:pop 160ms cubic-bezier(.22,1,.36,1)}
+  @keyframes pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
   .node .head{display:flex;align-items:center;gap:7px;pointer-events:none}
   .node .ico{font-size:14px}
   .node .ttl{font-size:12.5px;font-weight:640;overflow:hidden;text-overflow:ellipsis;
     white-space:nowrap;flex:1}
   .node .stat{font-size:12px;line-height:1;width:14px;text-align:center}
   .node .stat .sp{display:inline-block;width:10px;height:10px;border-radius:50%;
-    border:2px solid color-mix(in srgb,var(--llm) 35%,transparent);border-top-color:var(--llm);
+    border:2px solid color-mix(in srgb,var(--run) 35%,transparent);border-top-color:var(--run);
     animation:spin .7s linear infinite}
+  .node .tm, #runStatus{font-variant-numeric:tabular-nums}
   @keyframes spin{to{transform:rotate(360deg)}}
   .node .sub{font-family:var(--mono);font-size:10px;color:var(--muted);pointer-events:none;
     display:flex;justify-content:space-between;gap:6px}
@@ -159,7 +176,13 @@
     color:var(--ground);font-size:12px;padding:8px 14px;border-radius:8px;z-index:20;opacity:0;
     transition:opacity .2s;pointer-events:none}
   .toast.show{opacity:.95}
-  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  :focus-visible{outline:1px solid var(--ring);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){
+    .node.running,.node.done,.node.error,.edges path.flow,.node .mk{animation:none!important}
+    *{transition-duration:.01ms!important}
+    .node.running .sp{animation:none;border-top-color:currentColor}
+    .node.running{border-color:var(--run)}
+  }
 </style>
 </head>
 <body>
@@ -253,9 +276,11 @@ function renderAll(){
 }
 function makeNode(n){
   const t=TYPES[n.type], el=document.createElement("div");
-  el.className="node"; el.dataset.id=n.id;
+  el.className="node"; el.dataset.id=n.id; el.dataset.type=n.type;
+  el.tabIndex=0; el.setAttribute("role","button");
   el.style.cssText=`left:${n.x}px;top:${n.y}px;--nc:${CV[t.c]}`;
-  el.title=n.name+" — "+t.label;
+  const stTxt=nodeState[n.id]?(" — "+nodeState[n.id]):"";
+  el.title=n.name+" — "+t.label; el.setAttribute("aria-label",n.name+" — "+t.label+stTxt);
   const badge=n.web?'<span class="tag">🌐 web</span>':'';
   const timeTxt=timing[n.id]&&timing[n.id].ms!=null?(timing[n.id].ms/1000).toFixed(1)+"s":"";
   el.innerHTML=`<div class="head"><span class="ico">${t.ico}</span>
@@ -266,8 +291,8 @@ function makeNode(n){
   el.querySelector(".ttl").textContent=n.name;
   const st=nodeState[n.id]; if(st) el.classList.add(st);
   el.querySelector(".stat").innerHTML = st==="running"?'<span class="sp"></span>'
-    : st==="done"?'<span style="color:var(--ok)">✓</span>'
-    : st==="error"?'<span style="color:var(--err)">✗</span>':'';
+    : st==="done"?'<span class="mk" style="color:var(--ok)">✓</span>'
+    : st==="error"?'<span class="mk" style="color:var(--err)">✗</span>':'';
   if(sel&&sel.kind==="node"&&sel.id===n.id) el.classList.add("selected");
   viewport.appendChild(el); nodeEls[n.id]=el;
 }
@@ -522,6 +547,12 @@ document.getElementById("bExport").onclick=()=>{
 addEventListener("keydown",e=>{
   if(e.key===" "&&!["INPUT","TEXTAREA"].includes(e.target.tagName)){spaceDown=true;}
   if(["INPUT","TEXTAREA"].includes(e.target.tagName))return;
+  if(sel&&sel.kind==="node"&&e.key.startsWith("Arrow")){e.preventDefault();
+    const n=state.nodes.find(x=>x.id===sel.id); if(n){snapshot();
+      const d=e.shiftKey?40:10;
+      if(e.key==="ArrowLeft")n.x-=d; else if(e.key==="ArrowRight")n.x+=d;
+      else if(e.key==="ArrowUp")n.y-=d; else if(e.key==="ArrowDown")n.y+=d;
+      persist();renderAll();}}
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="z"){e.preventDefault(); e.shiftKey?doRedo():doUndo();return;}
   if((e.key==="Delete"||e.key==="Backspace")&&sel){e.preventDefault();
     if(sel.kind==="node")deleteNode(sel.id);
