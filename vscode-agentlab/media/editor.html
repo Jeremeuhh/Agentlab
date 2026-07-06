@@ -6,26 +6,30 @@
 <title>AgentLab</title>
 <style>
   :root{
-    --ground:#eef1f6; --dot:rgba(30,45,80,.10); --card:#ffffff; --card-2:#f7f9fc;
-    --ink:#171e2a; --muted:#5d6b7e; --hair:#dbe2ec; --line:#b7c1d1;
-    --llm:#6d4bff; --human:#d98a12; --io:#1f9463; --web:#2f7ef2;
-    --ok:#1f9463; --err:#c93b3b; --ring:rgba(109,75,255,.35);
-    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
-    --sans:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;
-    --shadow:0 1px 2px rgba(20,30,55,.06),0 8px 24px rgba(20,30,55,.10);
+    --ground: var(--vscode-editor-background);
+    --dot: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
+    --card: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+    --card-2: var(--vscode-input-background, var(--vscode-editor-background));
+    --panel-bg: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    --ink: var(--vscode-foreground);
+    --muted: var(--vscode-descriptionForeground, var(--vscode-foreground));
+    --hair: var(--vscode-widget-border, var(--vscode-panel-border, rgba(128,128,128,.25)));
+    --line: var(--vscode-panel-border, var(--vscode-widget-border, rgba(128,128,128,.35)));
+    --ring: var(--vscode-focusBorder);
+    /* types de cube — sémantiques, s'adaptent au thème */
+    --entree: var(--vscode-charts-green, #3cc487);
+    --llm: var(--vscode-charts-purple, #957dff);
+    --human: var(--vscode-charts-orange, #efb04a);
+    --sortie: var(--vscode-charts-blue, #5b9dff);
+    --io: var(--vscode-charts-green, #3cc487);
+    --web: var(--vscode-charts-blue, #5b9dff);
+    --run: var(--vscode-progressBar-background, var(--vscode-charts-purple, #957dff));
+    --ok: var(--vscode-charts-green, #3cc487);
+    --err: var(--vscode-errorForeground, #e06060);
+    --mono: var(--vscode-editor-font-family, ui-monospace, Menlo, Consolas, monospace);
+    --sans: var(--vscode-font-family, system-ui, sans-serif);
+    --shadow: 0 1px 2px color-mix(in srgb, black 12%, transparent);
   }
-  @media (prefers-color-scheme:dark){:root{
-    --ground:#0f131b; --dot:rgba(150,175,220,.09); --card:#1a212d; --card-2:#212a38;
-    --ink:#e7ecf4; --muted:#93a1b5; --hair:#2a3444; --line:#3a4557;
-    --llm:#957dff; --human:#efb04a; --io:#3cc487; --web:#5b9dff;
-    --ok:#3cc487; --err:#e06060; --ring:rgba(149,125,255,.45);
-    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.45);}}
-  body.vscode-dark{
-    --ground:#0f131b; --dot:rgba(150,175,220,.09); --card:#1a212d; --card-2:#212a38;
-    --ink:#e7ecf4; --muted:#93a1b5; --hair:#2a3444; --line:#3a4557;
-    --llm:#957dff; --human:#efb04a; --io:#3cc487; --web:#5b9dff;
-    --ok:#3cc487; --err:#e06060; --ring:rgba(149,125,255,.45);
-    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.45);}
 
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
@@ -47,7 +51,9 @@
     padding:5px 9px;font-size:12px;cursor:pointer}
   .tb button:hover{border-color:var(--line)}
   .tb button:disabled{opacity:.5;cursor:default}
-  .run{background:var(--llm)!important;border-color:var(--llm)!important;color:#fff;font-weight:600}
+  .run{background:var(--vscode-button-background)!important;border-color:var(--vscode-button-background)!important;
+    color:var(--vscode-button-foreground)!important;font-weight:600}
+  .run:hover{background:var(--vscode-button-hoverBackground)!important}
   #runStatus{font-size:12px;color:var(--muted);font-family:var(--mono);min-width:0;
     max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #runStatus.ok{color:var(--ok)} #runStatus.err{color:var(--err)}
