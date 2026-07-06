@@ -191,6 +191,15 @@
   .hitl .cancel{background:transparent;border:1px solid var(--hair);color:var(--muted);
     border-radius:6px;padding:7px 11px;font-size:12px;cursor:pointer}
   @media (prefers-reduced-motion:reduce){.hitl{transition:none}}
+  .banner{position:absolute;left:10px;right:10px;top:10px;z-index:5;display:flex;gap:8px;align-items:flex-start;
+    background:color-mix(in srgb,var(--err) 8%,transparent);border:1px solid var(--err);color:var(--ink);
+    border-radius:8px;padding:8px 10px;font-size:11.5px;line-height:1.4}
+  .banner code{font-family:var(--mono)}
+  .welcome{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:230px;text-align:center;
+    color:var(--muted);font-size:12px;line-height:1.5;text-wrap:balance;
+    border:1px dashed var(--line);border-radius:10px;padding:18px 16px}
+  .welcome button{margin-top:10px;background:var(--vscode-button-background);color:var(--vscode-button-foreground);
+    border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer}
   .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);
     color:var(--ground);font-size:12px;padding:8px 14px;border-radius:8px;z-index:20;opacity:0;
     transition:opacity .2s;pointer-events:none}
@@ -222,6 +231,8 @@
   <div class="workspace">
     <aside class="palette" id="palette"></aside>
     <div class="stage" id="stage">
+      <div class="banner" id="banner" hidden>⚠︎&nbsp;<span><code>claude</code> introuvable dans le PATH — l'édition marche, le <b>lancement est désactivé</b>. Installe Claude Code puis rouvre la vue.</span></div>
+      <div class="welcome" id="welcome" hidden>Ton canvas est vide.<br>Ajoute une brique depuis la palette, ou charge l'exemple.<br><button id="wload">Charger l'exemple</button></div>
       <div class="viewport" id="viewport"><svg class="edges" id="edges"></svg></div>
       <div class="controls">
         <button id="zout" aria-label="Dézoomer">–</button>
@@ -293,6 +304,7 @@ function renderAll(){
   viewport.querySelectorAll(".node").forEach(e=>e.remove());
   for(const n of state.nodes) makeNode(n);
   renderEdges(); updatePanel();
+  updateWelcome();
 }
 function makeNode(n){
   const t=TYPES[n.type], el=document.createElement("div");
@@ -434,8 +446,8 @@ function addAgent(a){ snapshot(); const c=center();
   state.nodes.push(n); persist(); select({kind:"node",id:n.id}); }
 function loadPipeline(data){
   if(!data||!Array.isArray(data.nodes))return toast("Pipeline invalide");
-  if(!confirm(`Charger « ${data.name||"pipeline"} » ? Le canvas actuel sera remplacé.`))return;
   snapshot(); state=structuredClone(data); nodeState={};timing={};outputs={};sel=null; persist(); renderAll(); fit();
+  toast(`Chargé : ${data.name||"pipeline"} · Ctrl+Z pour revenir`);
 }
 
 /* ---------- pan / zoom / drag ---------- */
@@ -519,6 +531,7 @@ document.getElementById("bLayout").onclick=autoLayout;
 /* ---------- exécution live ---------- */
 document.getElementById("bRun").onclick=()=>{
   if(running)return;
+  if(claudeMissing){toast("`claude` introuvable dans le PATH");return;}
   const entree=entreeInput.value.trim();
   if(!entree){entreeInput.focus();toast("Écris une entrée d'abord");return;}
   if(!state.nodes.length){toast("Pipeline vide");return;}
@@ -642,10 +655,20 @@ addEventListener("message",e=>{
   if(m.type==="agents"){AGENTS=m.agents||[];buildPalette();}
   else if(m.type==="pipelines"){PIPES=m.pipelines||[];buildPalette();}
   else if(m.type==="event"){onEvent(m.event);}
+  else if(m.type==="noclaude"){claudeMissing=true;const b=document.getElementById("banner");if(b)b.hidden=false;
+    const r=document.getElementById("bRun");if(r){r.disabled=true;r.title="`claude` introuvable dans le PATH";}}
   else if(m.type==="hitl_ask"){showHitl(m);}
   else if(m.type==="saved"){toast("Sauvé : "+m.name);}
   else if(m.type==="toast"){toast(m.text);}
 });
+
+/* ---------- accueil / préflight ---------- */
+let claudeMissing=false;
+function updateWelcome(){
+  const w=document.getElementById("welcome"); if(w) w.hidden = state.nodes.length>0;
+}
+document.getElementById("wload").onclick=()=>{ snapshot(); state=structuredClone(EXEMPLE);
+  nodeState={};timing={};outputs={};sel=null; persist(); renderAll(); fit(); };
 
 buildPalette(); renderAll(); fit();
 vscode.postMessage({type:"ready"});
