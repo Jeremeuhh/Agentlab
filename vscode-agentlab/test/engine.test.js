@@ -51,3 +51,44 @@ test("pipeline linéaire : ordre des événements + sortie écrite", async () =>
   assert.ok(written[0].content.includes("OUT<"));
   assert.ok(written[0].content.includes("mon sujet"));
 });
+
+test("fan-out puis convergence : le nœud aval reçoit toutes les sorties amont", async () => {
+  // echoAsk renvoie le prompt complet pour inspecter les deps injectées
+  const echoAsk = async (prompt) => "[[" + prompt + "]]";
+  const pipeline = {
+    name: "fan",
+    nodes: [
+      { id: "e", type: "entree", name: "In" },
+      { id: "a", type: "llm", name: "A", prompt: "PA" },
+      { id: "b", type: "llm", name: "B", prompt: "PB" },
+      { id: "c", type: "llm", name: "C", prompt: "PC" },
+    ],
+    edges: [["e", "a"], ["e", "b"], ["a", "c"], ["b", "c"]],
+  };
+  const outputs = await runPipeline(pipeline, "x", { ask: echoAsk });
+  // C a reçu en amont les noms des deux branches A et B
+  assert.ok(outputs.c.includes("## A"));
+  assert.ok(outputs.c.includes("## B"));
+});
+
+test("isolation d'erreur : un agent qui plante n'arrête pas le pipeline", async () => {
+  const flakyAsk = async (prompt) => {
+    if (prompt.startsWith("BOOM")) throw new Error("kaboom");
+    return "ok";
+  };
+  const pipeline = {
+    name: "err",
+    nodes: [
+      { id: "e", type: "entree", name: "In" },
+      { id: "bad", type: "llm", name: "Bad", prompt: "BOOM" },
+      { id: "good", type: "llm", name: "Good", prompt: "fine" },
+    ],
+    edges: [["e", "bad"], ["e", "good"]],
+  };
+  const events = [];
+  const outputs = await runPipeline(pipeline, "x", { ask: flakyAsk, onEvent: (e) => events.push(e) });
+  assert.ok(events.some((e) => e.type === "node_error" && e.id === "bad"));
+  assert.ok(events.some((e) => e.type === "pipeline_done"));
+  assert.equal(outputs.good, "ok");
+  assert.ok(outputs.bad.includes("a échoué"));
+});
