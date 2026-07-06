@@ -112,10 +112,12 @@
     background:color-mix(in srgb,var(--web) 14%,transparent);padding:1px 5px;border-radius:5px;
     pointer-events:none}
   .node.canlink{border-color:var(--llm);box-shadow:0 0 0 2px var(--ring)}
-  .port{position:absolute;top:16px;width:12px;height:12px;border-radius:50%;background:var(--card);
-    border:2.5px solid var(--nc,var(--line));cursor:crosshair;z-index:2}
-  .port.in{left:-6px} .port.out{right:-6px}
-  .port:hover{background:var(--nc)}
+  .port{position:absolute;left:50%;transform:translateX(-50%);width:13px;height:13px;border-radius:50%;
+    background:var(--card);border:2.5px solid var(--nc,var(--line));cursor:crosshair;z-index:2}
+  .port.in{top:-7px} .port.out{bottom:-7px}
+  .port.out{width:15px;height:15px} /* out plus gros : c'est d'ici qu'on tire */
+  .port::before{content:"";position:absolute;inset:-8px;border-radius:50%} /* hit-area 24px */
+  .port:hover{background:var(--nc);transform:translateX(-50%) scale(1.15)}
 
   .controls{position:absolute;top:10px;right:10px;display:flex;gap:5px;z-index:4}
   .controls button{width:31px;height:31px;border:1px solid var(--hair);background:var(--card);
@@ -184,8 +186,8 @@
         <button id="zfit" aria-label="Ajuster">⤢</button>
         <button id="zin" aria-label="Zoomer">+</button>
       </div>
-      <div class="helpbar"><b>glisser</b> brique = déplacer · <b>●→</b> vers une brique = relier ·
-        clic = éditer · <b>Suppr</b> = effacer · <b>Espace/molette-clic</b> = déplacer la vue · <b>Ctrl+Z</b> = annuler</div>
+      <div class="helpbar"><b>glisser</b> = déplacer · <b>point du bas → autre brique</b> = relier ·
+        clic = éditer · <b>Suppr</b> = effacer · <b>Espace/molette</b> = pan · <b>Ctrl+Z</b> = annuler</div>
     </div>
     <aside class="panel"><div class="pb" id="pbody">
       <div class="empty">Ajoute des briques depuis la palette, relie-les, écris une entrée en haut, puis ▶ Lancer. Sélectionne une brique pour éditer son prompt et voir sa dernière sortie.</div>
@@ -270,9 +272,10 @@ function makeNode(n){
   viewport.appendChild(el); nodeEls[n.id]=el;
 }
 function anchor(id,side){ const el=nodeEls[id]; const n=state.nodes.find(x=>x.id===id);
-  if(!el||!n)return{x:0,y:0}; return {x:n.x+(side==="out"?el.offsetWidth:0), y:n.y+22}; }
-function path(a,b){ const k=Math.max(45,Math.abs(b.x-a.x)*0.45);
-  return `M ${a.x} ${a.y} C ${a.x+k} ${a.y}, ${b.x-k} ${b.y}, ${b.x} ${b.y}`; }
+  if(!el||!n)return{x:0,y:0};
+  return {x:n.x+el.offsetWidth/2, y:n.y+(side==="out"?el.offsetHeight:0)}; }
+function path(a,b){ const k=Math.max(40,Math.abs(b.y-a.y)*0.5);
+  return `M ${a.x} ${a.y} C ${a.x} ${a.y+k}, ${b.x} ${b.y-k}, ${b.x} ${b.y}`; }
 function mk(d,cls,i){ const p=document.createElementNS("http://www.w3.org/2000/svg","path");
   p.setAttribute("d",d); p.setAttribute("class",cls); if(i!=null)p.dataset.i=i; return p; }
 function renderEdges(cursor){
@@ -463,7 +466,7 @@ function autoLayout(){
       if(L!==layer[i]){layer[i]=L;changed=true;}} }
   const cols={}; ids.forEach(i=>{(cols[layer[i]]=cols[layer[i]]||[]).push(i);});
   for(const L in cols){ cols[L].forEach((i,k)=>{const n=state.nodes.find(x=>x.id===i);
-    n.x=40+L*240; n.y=40+k*150;}); }
+    n.x=60+k*210; n.y=40+L*150;}); }
   persist(); renderAll(); fit();
 }
 document.getElementById("bLayout").onclick=autoLayout;
