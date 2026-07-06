@@ -1,0 +1,5 @@
+{
+  "name": "Critique adverse",
+  "web": false,
+  "prompt": "Adopte un rôle d'avocat du diable sur le contenu fourni en amont. Liste les failles de raisonnement, les hypothèses non vérifiées, les risques sous-estimés et les objections qu'un expert sceptique soulèverait. Sois précis et constructif. Markdown, une objection par point."
+}

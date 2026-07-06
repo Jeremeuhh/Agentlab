@@ -1,0 +1,19 @@
+{
+  "name": "agentlab",
+  "displayName": "AgentLab — orchestrateur d'agents",
+  "description": "Éditeur visuel de pipelines d'agents LLM, exécutés via votre abonnement Claude (claude -p).",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": { "vscode": "^1.75.0" },
+  "categories": ["Other"],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "agentlab.open",
+        "title": "AgentLab : ouvrir l'atelier de pipelines",
+        "category": "AgentLab"
+      }
+    ]
+  }
+}

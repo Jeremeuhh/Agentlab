@@ -1,0 +1,5 @@
+{
+  "name": "Questionneur",
+  "web": false,
+  "prompt": "À partir du sujet fourni en données amont, génère 5 à 7 questions de cadrage SPÉCIFIQUES au domaine détecté (pas de questions génériques). Réponds UNIQUEMENT avec ce JSON, sans texte autour : {\"questions\": [\"…\"]}"
+}

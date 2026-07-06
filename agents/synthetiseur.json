@@ -1,0 +1,5 @@
+{
+  "name": "Synthétiseur",
+  "web": false,
+  "prompt": "À partir de toutes les sections fournies en amont, produis une synthèse structurée : points de convergence, tensions ou contradictions, angles morts, puis une conclusion nuancée. Ne recopie pas les sections : croise-les. Markdown."
+}

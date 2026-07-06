@@ -1,0 +1,543 @@
+<title>Atelier de pipelines — orchestrateur d'agents</title>
+<style>
+  :root{
+    --ground:#eef1f6; --dot:rgba(30,45,80,.10);
+    --card:#ffffff; --card-2:#f7f9fc;
+    --ink:#171e2a; --muted:#5d6b7e; --hair:#dbe2ec; --line:#b7c1d1;
+    --llm:#6d4bff; --human:#d98a12; --io:#1f9463; --web:#2f7ef2;
+    --ring:rgba(109,75,255,.35); --danger:#c93b3b;
+    --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --shadow:0 1px 2px rgba(20,30,55,.06),0 8px 24px rgba(20,30,55,.10);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#0f131b; --dot:rgba(150,175,220,.09);
+      --card:#1a212d; --card-2:#212a38; --ink:#e7ecf4; --muted:#93a1b5;
+      --hair:#2a3444; --line:#3a4557; --llm:#957dff; --human:#efb04a;
+      --io:#3cc487; --web:#5b9dff; --ring:rgba(149,125,255,.45); --danger:#e06060;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.45);
+    }
+  }
+  :root[data-theme="light"]{
+    --ground:#eef1f6; --dot:rgba(30,45,80,.10); --card:#ffffff; --card-2:#f7f9fc;
+    --ink:#171e2a; --muted:#5d6b7e; --hair:#dbe2ec; --line:#b7c1d1;
+    --llm:#6d4bff; --human:#d98a12; --io:#1f9463; --web:#2f7ef2;
+    --ring:rgba(109,75,255,.35); --danger:#c93b3b;
+    --shadow:0 1px 2px rgba(20,30,55,.06),0 8px 24px rgba(20,30,55,.10);
+  }
+  :root[data-theme="dark"]{
+    --ground:#0f131b; --dot:rgba(150,175,220,.09); --card:#1a212d; --card-2:#212a38;
+    --ink:#e7ecf4; --muted:#93a1b5; --hair:#2a3444; --line:#3a4557;
+    --llm:#957dff; --human:#efb04a; --io:#3cc487; --web:#5b9dff;
+    --ring:rgba(149,125,255,.45); --danger:#e06060;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.45);
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;overflow:hidden}
+  .app{display:flex;flex-direction:column;height:100vh}
+  button{font:inherit;color:inherit}
+
+  /* ---------- barre haute ---------- */
+  .topbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:10px 16px;border-bottom:1px solid var(--hair);background:var(--card);z-index:6}
+  .topbar h1{margin:0 6px 0 0;font-size:15px;font-weight:650;letter-spacing:-.01em}
+  #pname{font-family:var(--mono);font-size:12.5px;color:var(--ink);
+    background:var(--card-2);border:1px solid var(--hair);border-radius:7px;
+    padding:5px 9px;width:150px}
+  #pname:focus-visible{outline:none;border-color:var(--llm);box-shadow:0 0 0 3px var(--ring)}
+  .tb{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+  .tb button{border:1px solid var(--hair);background:var(--card-2);border-radius:8px;
+    padding:6px 11px;font-size:12.5px;cursor:pointer}
+  .tb button:hover{border-color:var(--line)}
+  .tb button.primary{background:var(--llm);border-color:var(--llm);color:#fff;font-weight:600}
+  .tb button:focus-visible{outline:none;box-shadow:0 0 0 3px var(--ring)}
+
+  .workspace{flex:1;display:flex;min-height:0}
+
+  /* ---------- palette ---------- */
+  .palette{width:172px;flex-shrink:0;border-right:1px solid var(--hair);
+    background:var(--card);padding:14px 12px;display:flex;flex-direction:column;gap:8px;
+    overflow:auto}
+  .palette .cap{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--muted);font-weight:650;margin-bottom:2px}
+  .brick{display:flex;align-items:center;gap:9px;padding:9px 10px;text-align:left;
+    background:var(--card-2);border:1px solid var(--hair);border-radius:10px;
+    cursor:pointer;border-left:3px solid var(--bc)}
+  .brick:hover{border-color:var(--bc);transform:translateY(-1px)}
+  .brick:focus-visible{outline:none;box-shadow:0 0 0 3px var(--ring)}
+  .brick .bi{font-size:16px}
+  .brick .bl{font-size:12.5px;font-weight:600;line-height:1.2}
+  .brick .bd{font-size:10.5px;color:var(--muted);line-height:1.3}
+  .palette .hint{margin-top:auto;font-size:11px;color:var(--muted);line-height:1.55;
+    border-top:1px solid var(--hair);padding-top:10px}
+  .palette .hint code{font-family:var(--mono);font-size:10px;background:var(--card-2);
+    border:1px solid var(--hair);border-radius:4px;padding:0 4px}
+
+  /* ---------- scène ---------- */
+  .stage{position:relative;flex:1;min-width:0;overflow:hidden;cursor:grab;
+    background-image:radial-gradient(circle,var(--dot) 1.4px,transparent 1.5px);
+    background-size:22px 22px}
+  .stage.panning{cursor:grabbing}
+  .viewport{position:absolute;top:0;left:0;width:2400px;height:1300px;
+    transform-origin:0 0;will-change:transform}
+  .edges{position:absolute;top:0;left:0;overflow:visible;pointer-events:none}
+  .edges path.vis{fill:none;stroke:var(--line);stroke-width:2;transition:stroke .12s}
+  .edges path.hit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer}
+  .edges path.vis.sel{stroke:var(--llm);stroke-width:2.8}
+  .edges path.temp{fill:none;stroke:var(--llm);stroke-width:2;stroke-dasharray:6 5}
+
+  .node{position:absolute;width:176px;background:var(--card);
+    border:1px solid var(--hair);border-radius:13px;box-shadow:var(--shadow);
+    padding:10px 12px 11px;cursor:grab;user-select:none;
+    display:flex;flex-direction:column;gap:4px;border-top:3px solid var(--nc,var(--line))}
+  .node:active{cursor:grabbing}
+  .node.selected{border-color:var(--nc);box-shadow:0 0 0 3px var(--ring),var(--shadow)}
+  .node .head{display:flex;align-items:center;gap:8px;pointer-events:none}
+  .node .ico{font-size:15px;line-height:1}
+  .node .ttl{font-size:13px;font-weight:640;letter-spacing:-.01em;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .node .sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);pointer-events:none}
+  .node .tag{align-self:flex-start;font-family:var(--mono);font-size:10px;
+    color:var(--web);background:color-mix(in srgb,var(--web) 14%,transparent);
+    padding:1px 6px;border-radius:5px;pointer-events:none}
+  .port{position:absolute;top:50%;width:13px;height:13px;border-radius:50%;
+    background:var(--card);border:2.5px solid var(--nc,var(--line));
+    transform:translateY(-50%);cursor:crosshair;z-index:2}
+  .port.in{left:-7px}
+  .port.out{right:-7px}
+  .port:hover{background:var(--nc)}
+
+  .controls{position:absolute;top:12px;right:12px;display:flex;gap:6px;z-index:4}
+  .controls button{width:32px;height:32px;border:1px solid var(--hair);background:var(--card);
+    border-radius:9px;cursor:pointer;font-size:14px;display:grid;place-items:center;
+    box-shadow:var(--shadow)}
+  .controls button:hover{border-color:var(--line)}
+
+  .helpbar{position:absolute;left:12px;bottom:12px;font-size:11px;color:var(--muted);
+    background:color-mix(in srgb,var(--card) 88%,transparent);border:1px solid var(--hair);
+    border-radius:9px;padding:7px 11px;backdrop-filter:blur(4px);z-index:4;max-width:70%}
+  .helpbar b{color:var(--ink);font-weight:600}
+
+  /* ---------- panneau d'édition ---------- */
+  .panel{width:320px;flex-shrink:0;border-left:1px solid var(--hair);background:var(--card);
+    display:flex;flex-direction:column;min-height:0}
+  .panel .pb{padding:16px;overflow:auto;display:flex;flex-direction:column;gap:13px}
+  .panel .empty{color:var(--muted);font-size:12.5px;line-height:1.6;padding:20px 16px}
+  .f label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;
+    color:var(--muted);font-weight:650;margin-bottom:5px}
+  .f input[type=text],.f textarea{width:100%;font-family:var(--mono);font-size:12px;
+    color:var(--ink);background:var(--card-2);border:1px solid var(--hair);
+    border-radius:8px;padding:7px 9px;resize:vertical}
+  .f textarea{min-height:150px;line-height:1.5}
+  .f input:focus-visible,.f textarea:focus-visible{outline:none;border-color:var(--llm);
+    box-shadow:0 0 0 3px var(--ring)}
+  .f .check{display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer}
+  .f .check input{accent-color:var(--web);width:15px;height:15px}
+  .kindchip{align-self:flex-start;font-family:var(--mono);font-size:11px;padding:3px 9px;
+    border-radius:6px;color:var(--kc);background:color-mix(in srgb,var(--kc) 12%,transparent);
+    border:1px solid color-mix(in srgb,var(--kc) 28%,transparent)}
+  .btn-danger{border:1px solid color-mix(in srgb,var(--danger) 40%,transparent);
+    background:color-mix(in srgb,var(--danger) 8%,transparent);color:var(--danger);
+    border-radius:8px;padding:7px 11px;font-size:12.5px;cursor:pointer;align-self:flex-start}
+  .btn-danger:hover{background:color-mix(in srgb,var(--danger) 15%,transparent)}
+  .pnote{font-size:11.5px;color:var(--muted);line-height:1.5}
+  .pnote code{font-family:var(--mono);font-size:10.5px;background:var(--card-2);
+    border:1px solid var(--hair);border-radius:4px;padding:0 4px}
+
+  dialog{border:1px solid var(--hair);border-radius:14px;background:var(--card);
+    color:var(--ink);box-shadow:var(--shadow);padding:20px;max-width:520px;width:90%}
+  dialog::backdrop{background:rgba(10,14,22,.45)}
+  dialog h2{margin:0 0 8px;font-size:15px}
+  dialog p{font-size:12.5px;color:var(--muted);line-height:1.55;margin:0 0 12px}
+  dialog pre{font-family:var(--mono);font-size:11px;background:var(--card-2);
+    border:1px solid var(--hair);border-radius:8px;padding:10px;overflow-x:auto;margin:0 0 14px}
+  dialog .row{display:flex;gap:8px;justify-content:flex-end}
+  dialog button{border:1px solid var(--hair);background:var(--card-2);border-radius:8px;
+    padding:7px 12px;font-size:12.5px;cursor:pointer}
+  dialog button.primary{background:var(--llm);border-color:var(--llm);color:#fff}
+
+  @media (max-width:900px){
+    .palette{width:64px;padding:10px 7px}
+    .palette .bl,.palette .bd,.palette .cap,.palette .hint{display:none}
+    .brick{justify-content:center;padding:9px 0}
+    .panel{width:260px}
+    .helpbar{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <h1>Atelier de pipelines</h1>
+    <input id="pname" aria-label="Nom du pipeline" spellcheck="false">
+    <div class="tb">
+      <button id="bEx">Exemple ideas</button>
+      <button id="bClear">Vider</button>
+      <button id="bImport">Importer</button>
+      <button id="bCopy">Copier JSON</button>
+      <button id="bExport" class="primary">Exporter JSON</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="palette" id="palette">
+      <div class="cap">Briques</div>
+      <!-- remplies en JS -->
+      <div class="hint">
+        Clique une brique pour l'ajouter.<br>
+        Glisse depuis un point <b>●</b> droit vers une autre brique pour connecter.<br><br>
+        Puis exporte et lance :<br>
+        <code>python3 orch.py p.json "entrée"</code>
+      </div>
+    </aside>
+
+    <div class="stage" id="stage">
+      <div class="viewport" id="viewport">
+        <svg class="edges" id="edges" width="2400" height="1300"></svg>
+      </div>
+      <div class="controls">
+        <button id="zout" aria-label="Dézoomer">–</button>
+        <button id="zfit" aria-label="Ajuster la vue">⤢</button>
+        <button id="zin" aria-label="Zoomer">+</button>
+      </div>
+      <div class="helpbar"><b>drag</b> brique = déplacer · <b>●→●</b> = connecter ·
+        clic lien/brique = sélectionner · <b>Suppr</b> = effacer · fond = pan · molette = zoom</div>
+    </div>
+
+    <aside class="panel">
+      <div class="pb" id="pbody">
+        <div class="empty">Sélectionne une brique pour la configurer (nom, prompt, WebSearch), ou un lien pour le supprimer.</div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<dialog id="dlgExport">
+  <h2>Pipeline exporté</h2>
+  <p>Le fichier JSON est téléchargé. Pour l'exécuter avec ton abonnement Claude :</p>
+  <pre id="dlgCmd"></pre>
+  <div class="row"><button class="primary" onclick="this.closest('dialog').close()">OK</button></div>
+</dialog>
+<input type="file" id="fileIn" accept=".json,application/json" hidden>
+
+<script>
+"use strict";
+const TYPES = {
+  entree:{ico:"💡",label:"Entrée",c:"io",   desc:"le texte passé en CLI",   in:false,out:true},
+  llm:   {ico:"🤖",label:"Agent LLM",c:"llm",desc:"un appel Claude + prompt",in:true, out:true},
+  hitl:  {ico:"🧑",label:"Humain (HITL)",c:"human",desc:"questions au clavier",in:true,out:true},
+  sortie:{ico:"📄",label:"Sortie fichier",c:"io",desc:"écrit le Markdown",   in:true, out:false},
+};
+const CVAR = {llm:"var(--llm)",human:"var(--human)",io:"var(--io)"};
+
+const EXEMPLE = {
+  name:"ideas",
+  nodes:[
+    {id:"n1",type:"entree",name:"Idée",x:40,y:300},
+    {id:"n2",type:"llm",name:"Questionnaire",x:270,y:300,web:false,
+     prompt:'Tu prépares un dossier de faisabilité pour l\'idée fournie en données amont. Génère 5 à 7 questions de cadrage SPÉCIFIQUES au domaine détecté (pas de questions génériques). Réponds UNIQUEMENT avec ce JSON, sans texte autour : {"questions": ["…"]}'},
+    {id:"n3",type:"hitl",name:"Cadrage",x:500,y:300},
+    {id:"n4",type:"llm",name:"Marché",x:740,y:80,web:false,
+     prompt:"Rédige la section « Marché » d'un dossier de faisabilité à partir du brief amont : TAM / SAM / SOM estimés (avec hypothèses), concurrents principaux, tendances, positionnement recommandé. Markdown, sous-titres en ###."},
+    {id:"n5",type:"llm",name:"Chiffrage",x:740,y:230,web:false,
+     prompt:"Rédige la section « Chiffrage » : coûts de démarrage, modèle de revenus, hypothèses de prix, seuil de rentabilité. Marque chaque chiffre « estimation à valider ». Markdown, sous-titres en ###."},
+    {id:"n6",type:"llm",name:"Plan",x:740,y:380,web:false,
+     prompt:"Rédige la section « Plan » : MVP, étapes concrètes, jalons, séquencement, premières actions cette semaine. Markdown, sous-titres en ###."},
+    {id:"n7",type:"llm",name:"Trajectoires",x:740,y:530,web:false,
+     prompt:"Rédige la section « Trajectoires » : 3 scénarios — prudent / réaliste / ambitieux — et ce qui les distingue. Markdown, sous-titres en ###."},
+    {id:"n8",type:"llm",name:"Synthèse",x:980,y:300,web:false,
+     prompt:"À partir du brief et des sections amont : analyse croisée (cohérences, tensions, risques majeurs) puis recommandation finale go / no-go NUANCÉE avec ses conditions. Markdown."},
+    {id:"n9",type:"sortie",name:"Rapport",x:1210,y:300},
+  ],
+  edges:[["n1","n2"],["n2","n3"],["n1","n3"],
+    ["n3","n4"],["n3","n5"],["n3","n6"],["n3","n7"],
+    ["n4","n8"],["n5","n8"],["n6","n8"],["n7","n8"],
+    ["n4","n9"],["n5","n9"],["n6","n9"],["n7","n9"],["n8","n9"]],
+};
+
+let state = load() || structuredClone(EXEMPLE);
+let sel = null;              // {kind:"node",id} | {kind:"edge",i}
+let linking = null;          // {from:id}
+
+const viewport = document.getElementById("viewport");
+const edgesSvg = document.getElementById("edges");
+const stage    = document.getElementById("stage");
+const pname    = document.getElementById("pname");
+const nodeEls  = {};
+
+function save(){ localStorage.setItem("atelier-pipelines", JSON.stringify(state)); }
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem("atelier-pipelines"));
+       return (s && Array.isArray(s.nodes) && Array.isArray(s.edges)) ? s : null; }
+  catch{ return null; }
+}
+function slug(t){
+  return (t||"pipeline").normalize("NFKD").replace(/[̀-ͯ]/g,"")
+    .toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,40)||"pipeline";
+}
+function newId(){
+  let m = 0;
+  for(const n of state.nodes){ const v = parseInt(String(n.id).replace(/\D/g,""))||0; if(v>m)m=v; }
+  return "n"+(m+1);
+}
+
+/* ---------------- rendu ---------------- */
+function renderAll(){
+  pname.value = state.name || "pipeline";
+  for(const k in nodeEls) delete nodeEls[k];
+  viewport.querySelectorAll(".node").forEach(e=>e.remove());
+  for(const n of state.nodes) makeNodeEl(n);
+  renderEdges();
+  updatePanel();
+}
+function makeNodeEl(n){
+  const t = TYPES[n.type];
+  const el = document.createElement("div");
+  el.className = "node"; el.dataset.id = n.id;
+  el.style.cssText = `left:${n.x}px;top:${n.y}px;--nc:${CVAR[t.c]}`;
+  el.innerHTML =
+    `<div class="head"><span class="ico">${t.ico}</span><span class="ttl"></span></div>
+     <span class="sub">${t.label}</span>
+     ${n.web ? '<span class="tag">🌐 web</span>' : ""}
+     ${t.in  ? '<span class="port in"  data-id="'+n.id+'"></span>' : ""}
+     ${t.out ? '<span class="port out" data-id="'+n.id+'"></span>' : ""}`;
+  el.querySelector(".ttl").textContent = n.name;
+  if(sel && sel.kind==="node" && sel.id===n.id) el.classList.add("selected");
+  viewport.appendChild(el);
+  nodeEls[n.id] = el;
+}
+function anchor(id, side){
+  const el = nodeEls[id]; if(!el) return {x:0,y:0};
+  const n = state.nodes.find(n=>n.id===id);
+  return { x: n.x + (side==="out" ? el.offsetWidth : 0),
+           y: n.y + el.offsetHeight/2 };
+}
+function edgePath(a,b){
+  const k = Math.max(45, Math.abs(b.x-a.x)*0.45);
+  return `M ${a.x} ${a.y} C ${a.x+k} ${a.y}, ${b.x-k} ${b.y}, ${b.x} ${b.y}`;
+}
+function renderEdges(cursor){
+  edgesSvg.innerHTML = "";
+  state.edges.forEach(([f,t],i)=>{
+    const d = edgePath(anchor(f,"out"), anchor(t,"in"));
+    const vis = mkPath(d,"vis"); if(sel && sel.kind==="edge" && sel.i===i) vis.classList.add("sel");
+    const hit = mkPath(d,"hit"); hit.dataset.i = i;
+    hit.addEventListener("pointerdown", e=>{ e.stopPropagation(); select({kind:"edge",i}); });
+    edgesSvg.append(vis,hit);
+  });
+  if(linking && cursor) edgesSvg.append(mkPath(edgePath(anchor(linking.from,"out"),cursor),"temp"));
+}
+function mkPath(d,cls){
+  const p = document.createElementNS("http://www.w3.org/2000/svg","path");
+  p.setAttribute("d",d); p.setAttribute("class",cls); return p;
+}
+
+/* ---------------- sélection + panneau ---------------- */
+function select(s){ sel = s; renderAll(); }
+function updatePanel(){
+  const pb = document.getElementById("pbody");
+  if(!sel){ pb.innerHTML = '<div class="empty">Sélectionne une brique pour la configurer (nom, prompt, WebSearch), ou un lien pour le supprimer.</div>'; return; }
+
+  if(sel.kind==="edge"){
+    const [f,t] = state.edges[sel.i] || [];
+    const nf = state.nodes.find(n=>n.id===f), nt = state.nodes.find(n=>n.id===t);
+    pb.innerHTML = `<span class="kindchip" style="--kc:var(--llm)">lien</span>
+      <div class="pnote"><code></code> → <code></code><br><br>La sortie de la première brique est injectée en contexte de la seconde.</div>
+      <button class="btn-danger" id="delSel">Supprimer le lien</button>`;
+    const cs = pb.querySelectorAll("code");
+    cs[0].textContent = nf?.name||f; cs[1].textContent = nt?.name||t;
+    document.getElementById("delSel").onclick = ()=>{ state.edges.splice(sel.i,1); sel=null; save(); renderAll(); };
+    return;
+  }
+
+  const n = state.nodes.find(n=>n.id===sel.id); if(!n) return;
+  const t = TYPES[n.type];
+  pb.innerHTML = `
+    <span class="kindchip" style="--kc:${CVAR[t.c]}">${t.ico} ${t.label}</span>
+    <div class="f"><label for="fName">Nom de la brique</label>
+      <input type="text" id="fName" spellcheck="false"></div>
+    ${n.type==="llm" ? `
+    <div class="f"><label for="fPrompt">Prompt de l'agent</label>
+      <textarea id="fPrompt" spellcheck="false"></textarea></div>
+    <div class="f"><label class="check"><input type="checkbox" id="fWeb">
+      🌐 WebSearch autorisé pour cet agent</label></div>` : ""}
+    ${n.type==="hitl" ? `<div class="pnote">À l'exécution : si une brique amont produit un JSON <code>{"questions": […]}</code>, elles te sont posées une par une au clavier. Sinon, commentaire libre.</div>` : ""}
+    ${n.type==="entree" ? `<div class="pnote">Reçoit le texte passé en ligne de commande : <code>python3 orch.py p.json "…"</code></div>` : ""}
+    ${n.type==="sortie" ? `<div class="pnote">Écrit un fichier <code>.md</code> concaténant les sorties de toutes les briques connectées en amont.</div>` : ""}
+    <button class="btn-danger" id="delSel">Supprimer la brique</button>`;
+
+  const fName = document.getElementById("fName");
+  fName.value = n.name;
+  fName.addEventListener("input", ()=>{ n.name = fName.value;
+    nodeEls[n.id].querySelector(".ttl").textContent = n.name; save(); });
+  if(n.type==="llm"){
+    const fP = document.getElementById("fPrompt"), fW = document.getElementById("fWeb");
+    fP.value = n.prompt||""; fW.checked = !!n.web;
+    fP.addEventListener("input", ()=>{ n.prompt = fP.value; save(); });
+    fW.addEventListener("change", ()=>{ n.web = fW.checked; save();
+      const id=n.id; select({kind:"node",id}); });
+  }
+  document.getElementById("delSel").onclick = ()=>{
+    state.edges = state.edges.filter(([a,b])=>a!==n.id && b!==n.id);
+    state.nodes = state.nodes.filter(x=>x.id!==n.id);
+    sel = null; save(); renderAll();
+  };
+}
+
+/* ---------------- palette ---------------- */
+const pal = document.getElementById("palette");
+for(const [type,t] of Object.entries(TYPES)){
+  const b = document.createElement("button");
+  b.className = "brick"; b.style.setProperty("--bc", CVAR[t.c]);
+  b.innerHTML = `<span class="bi">${t.ico}</span><span><span class="bl">${t.label}</span><br><span class="bd">${t.desc}</span></span>`;
+  b.addEventListener("click", ()=>{
+    const r = stage.getBoundingClientRect();
+    const cx = (r.width/2 - tx)/sc - 88, cy = (r.height/2 - ty)/sc - 40;
+    const n = {id:newId(), type, name:t.label, x:Math.round(cx), y:Math.round(cy)};
+    if(type==="llm"){ n.prompt=""; n.web=false; }
+    state.nodes.push(n); save(); select({kind:"node",id:n.id});
+  });
+  pal.insertBefore(b, pal.querySelector(".hint"));
+}
+
+/* ---------------- interactions scène ---------------- */
+let tx=0, ty=0, sc=1;
+function apply(){ viewport.style.transform = `translate(${tx}px,${ty}px) scale(${sc})`; }
+function toVp(e){ const r = stage.getBoundingClientRect();
+  return {x:(e.clientX-r.left-tx)/sc, y:(e.clientY-r.top-ty)/sc}; }
+function bounds(){
+  if(!state.nodes.length) return {x:0,y:0,w:800,h:500};
+  const xs=state.nodes.map(n=>n.x), ys=state.nodes.map(n=>n.y);
+  return {x:Math.min(...xs), y:Math.min(...ys),
+          w:Math.max(...xs)-Math.min(...xs)+220, h:Math.max(...ys)-Math.min(...ys)+160};
+}
+function fit(){
+  const r = stage.getBoundingClientRect(), b = bounds();
+  sc = Math.max(.3, Math.min(r.width/b.w, r.height/b.h, 1.3)*0.92);
+  tx = (r.width - b.w*sc)/2 - b.x*sc; ty = (r.height - b.h*sc)/2 - b.y*sc; apply();
+}
+function zoomAt(cx,cy,f){
+  const ns = Math.max(.3, Math.min(2.2, sc*f));
+  tx = cx-(cx-tx)*(ns/sc); ty = cy-(cy-ty)*(ns/sc); sc = ns; apply();
+}
+stage.addEventListener("wheel", e=>{
+  e.preventDefault(); const r = stage.getBoundingClientRect();
+  zoomAt(e.clientX-r.left, e.clientY-r.top, e.deltaY<0 ? 1.12 : 1/1.12);
+},{passive:false});
+document.getElementById("zin").onclick = ()=>{const r=stage.getBoundingClientRect();zoomAt(r.width/2,r.height/2,1.2);};
+document.getElementById("zout").onclick= ()=>{const r=stage.getBoundingClientRect();zoomAt(r.width/2,r.height/2,1/1.2);};
+document.getElementById("zfit").onclick = fit;
+
+let drag = null;   // {kind:"pan"|"node", …}
+stage.addEventListener("pointerdown", e=>{
+  const port = e.target.closest(".port");
+  if(port){
+    if(port.classList.contains("out")){
+      linking = {from: port.dataset.id};
+      stage.setPointerCapture(e.pointerId);
+    }
+    e.stopPropagation(); return;
+  }
+  const nodeEl = e.target.closest(".node");
+  if(nodeEl){
+    const n = state.nodes.find(x=>x.id===nodeEl.dataset.id);
+    const p = toVp(e);
+    drag = {kind:"node", n, dx:p.x-n.x, dy:p.y-n.y, moved:false};
+    stage.setPointerCapture(e.pointerId);
+    return;
+  }
+  drag = {kind:"pan", x:e.clientX, y:e.clientY, tx, ty, moved:false};
+  stage.classList.add("panning");
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener("pointermove", e=>{
+  if(linking){ renderEdges(toVp(e)); return; }
+  if(!drag) return;
+  if(drag.kind==="pan"){
+    const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+    if(Math.abs(dx)+Math.abs(dy)>3) drag.moved=true;
+    tx=drag.tx+dx; ty=drag.ty+dy; apply();
+  }else{
+    const p = toVp(e);
+    drag.moved = true;
+    drag.n.x = Math.round(p.x-drag.dx); drag.n.y = Math.round(p.y-drag.dy);
+    const el = nodeEls[drag.n.id];
+    el.style.left = drag.n.x+"px"; el.style.top = drag.n.y+"px";
+    renderEdges();
+  }
+});
+stage.addEventListener("pointerup", e=>{
+  if(linking){
+    const target = document.elementFromPoint(e.clientX,e.clientY)?.closest(".node");
+    if(target){
+      const to = target.dataset.id, from = linking.from;
+      const ok = to!==from && TYPES[state.nodes.find(n=>n.id===to).type].in
+        && !state.edges.some(([a,b])=>a===from&&b===to);
+      if(ok){ state.edges.push([from,to]); save(); }
+    }
+    linking = null; renderEdges(); return;
+  }
+  if(!drag) return;
+  if(drag.kind==="pan"){
+    stage.classList.remove("panning");
+    if(!drag.moved && !e.target.closest(".node")) select(null);
+  }else{
+    if(drag.moved) save(); else select({kind:"node", id:drag.n.id});
+  }
+  drag = null;
+});
+stage.addEventListener("pointercancel", ()=>{ drag=null; linking=null;
+  stage.classList.remove("panning"); renderEdges(); });
+
+addEventListener("keydown", e=>{
+  if(["INPUT","TEXTAREA"].includes(e.target.tagName)) return;
+  if((e.key==="Delete"||e.key==="Backspace") && sel){
+    e.preventDefault();
+    document.getElementById("delSel")?.click();
+  }
+  if(e.key==="Escape"){ linking=null; select(null); }
+});
+
+/* ---------------- barre d'outils ---------------- */
+pname.addEventListener("input", ()=>{ state.name = pname.value; save(); });
+document.getElementById("bEx").onclick = ()=>{
+  if(confirm("Remplacer le canvas par l'exemple « ideas » ?")){
+    state = structuredClone(EXEMPLE); sel=null; save(); renderAll(); fit(); }
+};
+document.getElementById("bClear").onclick = ()=>{
+  if(confirm("Vider tout le canvas ?")){
+    state = {name:"pipeline", nodes:[], edges:[]}; sel=null; save(); renderAll(); }
+};
+document.getElementById("bExport").onclick = ()=>{
+  const fname = `pipeline-${slug(state.name)}.json`;
+  const blob = new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const a = Object.assign(document.createElement("a"),
+    {href:URL.createObjectURL(blob), download:fname});
+  a.click(); URL.revokeObjectURL(a.href);
+  document.getElementById("dlgCmd").textContent =
+    `python3 orch.py ${fname} "ton texte d'entrée"`;
+  document.getElementById("dlgExport").showModal();
+};
+document.getElementById("bCopy").onclick = async e=>{
+  try{ await navigator.clipboard.writeText(JSON.stringify(state,null,2));
+       e.target.textContent="Copié ✓"; setTimeout(()=>e.target.textContent="Copier JSON",1400); }
+  catch{ alert("Copie impossible ici — utilise Exporter JSON."); }
+};
+document.getElementById("bImport").onclick = ()=>document.getElementById("fileIn").click();
+document.getElementById("fileIn").addEventListener("change", e=>{
+  const f = e.target.files[0]; if(!f) return;
+  f.text().then(txt=>{
+    const s = JSON.parse(txt);
+    if(!Array.isArray(s.nodes)||!Array.isArray(s.edges)) throw 0;
+    state = s; sel=null; save(); renderAll(); fit();
+  }).catch(()=>alert("Fichier invalide : il faut un JSON avec « nodes » et « edges »."));
+  e.target.value = "";
+});
+
+renderAll();
+fit();
+</script>

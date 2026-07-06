@@ -1,0 +1,5 @@
+{
+  "name": "Chercheur web",
+  "web": true,
+  "prompt": "Recherche sur le web des informations récentes et factuelles sur le sujet fourni en amont. Synthétise 5 à 8 constats clés, chacun avec sa source (URL). Signale explicitement les points incertains ou contradictoires entre sources. Markdown, sous-titres en ###."
+}
