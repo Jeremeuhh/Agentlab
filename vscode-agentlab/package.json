@@ -1,19 +1,33 @@
 {
   "name": "agentlab",
   "displayName": "AgentLab — orchestrateur d'agents",
-  "description": "Éditeur visuel de pipelines d'agents LLM, exécutés via votre abonnement Claude (claude -p).",
-  "version": "0.1.0",
+  "description": "Atelier visuel de pipelines d'agents LLM, exécutés via votre abonnement Claude Code (claude -p).",
+  "version": "0.2.0",
   "publisher": "local",
   "engines": { "vscode": "^1.75.0" },
-  "categories": ["Other"],
+  "categories": ["Other", "AI"],
   "main": "./extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "agentlab", "title": "AgentLab", "icon": "media/icon.svg" }
+      ]
+    },
+    "views": {
+      "agentlab": [
+        { "type": "webview", "id": "agentlab.view", "name": "Atelier" }
+      ]
+    },
     "commands": [
-      {
-        "command": "agentlab.open",
-        "title": "AgentLab : ouvrir l'atelier de pipelines",
-        "category": "AgentLab"
-      }
+      { "command": "agentlab.focus", "title": "AgentLab : ouvrir l'atelier", "category": "AgentLab" },
+      { "command": "agentlab.importPipeline", "title": "AgentLab : importer un pipeline (JSON)", "category": "AgentLab" }
     ]
+  },
+  "scripts": {
+    "test": "node --test",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.2.0"
   }
 }
