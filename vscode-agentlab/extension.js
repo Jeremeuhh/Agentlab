@@ -100,6 +100,18 @@ class AgentLabViewProvider {
       } catch (e) {
         this.post("toast", { text: "Sauvegarde impossible : " + e.message });
       }
+    } else if (m.type === "saveAgent") {
+      try {
+        const dir = libPath(this.context, "agents");
+        fs.mkdirSync(dir, { recursive: true });
+        let name = String((m.data && m.data.name) || "agent").trim().replace(/[^\w.à-ÿ-]+/gi, "-") || "agent";
+        if (!name.endsWith(".json")) name += ".json";
+        fs.writeFileSync(path.join(dir, name), JSON.stringify(m.data, null, 2));
+        this.post("toast", { text: "Agent enregistré : " + name });
+        this.post("agents", { agents: loadAgents(this.context) });
+      } catch (e) {
+        this.post("toast", { text: "Enregistrement impossible : " + e.message });
+      }
     } else if (m.type === "hitl_answer") {
       const resolve = this.hitl.get(m.id);
       if (resolve) { this.hitl.delete(m.id); resolve(m.payload || {}); }
