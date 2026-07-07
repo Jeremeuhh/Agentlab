@@ -47,6 +47,8 @@
     border:none;border-radius:5px;padding:4px 10px;font-weight:600;cursor:pointer;flex-shrink:0}
   .run:hover{background:var(--vscode-button-hoverBackground)}
   .run:disabled{opacity:.5;cursor:default}
+  .run.stop{background:var(--err);color:#fff}
+  .run.stop:hover{background:var(--err)}
   #bMore{background:none;border:1px solid var(--hair);border-radius:5px;padding:4px 8px;cursor:pointer;flex-shrink:0}
   #bMore:hover{border-color:var(--line)}
 
@@ -68,6 +70,12 @@
   .ico{font-size:13px;flex-shrink:0}
   .nm{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .chip{font-size:10px;flex-shrink:0}
+  .chip.warn{color:var(--human)}
+  /* icônes Material (SVG inline) : héritent taille (em) + couleur du texte */
+  .mi{width:1.15em;height:1.15em;fill:currentColor;vertical-align:-.22em;flex:none}
+  .caret{font-size:9px;color:var(--muted);flex-shrink:0;width:11px;text-align:center;
+    transition:transform 120ms ease-out}
+  .row[aria-expanded="true"] .caret{transform:rotate(90deg)}
   .tm{font-family:var(--mono);font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;flex-shrink:0}
   .st{width:14px;text-align:center;font-size:12px;flex-shrink:0}
   .st .sp{display:inline-block;width:9px;height:9px;border-radius:50%;
@@ -99,11 +107,13 @@
     border-radius:5px;padding:3px 9px;cursor:pointer;color:var(--muted)}
   .madd:hover{color:var(--ink);border-color:var(--ring)}
 
-  /* ---- champ entrée ---- */
-  .inbox{padding:0 9px 8px 31px}
-  .inbox input{width:100%;font-family:var(--mono);font-size:12px;color:var(--ink);
-    background:var(--card-2);border:1px solid var(--hair);border-radius:5px;padding:6px 8px}
-  .inbox input:focus-visible{outline:none;border-color:var(--ring);
+  /* ---- barre sujet ---- */
+  .subbar{display:flex;align-items:center;gap:6px;padding:6px 8px;
+    border-bottom:1px solid var(--hair);background:var(--card);flex-shrink:0}
+  .subbar .subico{font-size:13px;flex-shrink:0}
+  .subbar input{flex:1;min-width:0;font-family:var(--mono);font-size:12px;color:var(--ink);
+    background:var(--card-2);border:1px solid var(--hair);border-radius:5px;padding:5px 8px}
+  .subbar input:focus-visible{outline:none;border-color:var(--ring);
     box-shadow:0 0 0 2px color-mix(in srgb,var(--ring) 30%,transparent)}
 
   /* ---- éditeur déplié ---- */
@@ -113,7 +123,8 @@
   .ed label{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
   .ed input[type=text],.ed textarea{width:100%;font-family:var(--mono);font-size:12px;color:var(--ink);
     background:var(--card-2);border:1px solid var(--hair);border-radius:5px;padding:6px 8px}
-  .ed textarea{min-height:90px;resize:vertical;line-height:1.45}
+  .ed textarea{min-height:clamp(320px,68vh,680px);resize:vertical;line-height:1.5}
+  .ed textarea.ePrompt{font-size:12.5px}
   .ed input:focus-visible,.ed textarea:focus-visible{outline:none;border-color:var(--ring);
     box-shadow:0 0 0 2px color-mix(in srgb,var(--ring) 30%,transparent)}
   .check{display:flex;gap:6px;align-items:center;font-size:11.5px;cursor:pointer;
@@ -149,6 +160,8 @@
     font-size:12px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .menu button:hover{background:var(--card-2)}
   .menu .sub{font-size:10px;color:var(--muted);font-family:var(--mono);flex-shrink:0}
+  .menu .mlbl{display:flex;align-items:center;gap:8px;min-width:0}
+  .menu .mlbl>span{overflow:hidden;text-overflow:ellipsis}
   .menu .sep{height:1px;background:var(--hair);margin:4px 2px}
   .welcome{margin:24px auto;text-align:center;max-width:210px;color:var(--muted);
     font-size:12px;line-height:1.5;text-wrap:balance;border:1px dashed var(--line);
@@ -191,11 +204,15 @@
 <body>
 <header class="top">
   <button id="bLib" class="lib" title="Pipelines (charger / nouveau)">pipeline ▾</button>
-  <span id="runStatus"></span>
-  <button id="bRun" class="run" title="Lancer le pipeline">▶ Run</button>
+  <button id="bRun" class="run" title="Lancer le pipeline"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg> Run</button>
   <button id="bMore" title="Sauver, exporter, renommer…">⋯</button>
 </header>
-<div class="banner" id="banner" hidden>⚠︎&nbsp;<span><code>claude</code> introuvable dans le PATH — l'édition marche, le <b>lancement est désactivé</b>.</span></div>
+<div class="subbar">
+  <span class="subico" title="Sujet injecté au départ du pipeline"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg></span>
+  <input id="entree" type="text" spellcheck="false" placeholder="Sujet / question du run…">
+  <span id="runStatus"></span>
+</div>
+<div class="banner" id="banner" hidden><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg><span><code>claude</code> introuvable dans le PATH — l'édition marche, le <b>lancement est désactivé</b>.</span></div>
 <main class="list" id="list"></main>
 <footer class="foot"><button id="bAdd">＋ étape</button></footer>
 <div class="menu" id="menu" hidden></div>
@@ -206,6 +223,24 @@
 "use strict";
 const vscode = acquireVsCodeApi();
 
+/* ---------- icônes Material Symbols (Apache-2.0), paths 24×24 inline ----------
+   voir NOTICE.md pour l'attribution. ic(n) → <svg> qui hérite couleur/taille. */
+const ICONS = {
+  smart_toy:"M20 9V7c0-1.1-.9-2-2-2h-3c0-1.66-1.34-3-3-3S9 3.34 9 5H6c-1.1 0-2 .9-2 2v2c-1.66 0-3 1.34-3 3s1.34 3 3 3v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4c1.66 0 3-1.34 3-3s-1.34-3-3-3zM7.5 11.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5S9.83 13 9 13s-1.5-.67-1.5-1.5zM16 17H8v-2h8v2zm-1-4c-.83 0-1.5-.67-1.5-1.5S14.17 10 15 10s1.5.67 1.5 1.5S15.83 13 15 13z",
+  lightbulb:"M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z",
+  person:"M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z",
+  description:"M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z",
+  account_tree:"M22 11V3h-7v3H9V3H2v8h7V8h2v10h4v3h7v-8h-7v3h-2V8h2v3z",
+  language:"M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2 0 .68.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2 0-.68.07-1.35.16-2h4.68c.09.65.16 1.32.16 2 0 .68-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2 0-.68-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z",
+  extension:"M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z",
+  save:"M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z",
+  play_arrow:"M8 5v14l11-7z",
+  stop:"M6 6h12v12H6z",
+  edit:"M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z",
+  warning:"M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z",
+};
+function ic(n){ return '<svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="'+ICONS[n]+'"/></svg>'; }
+
 /* ---------- modèle : pipeline = liste d'étapes ----------
    étape = {kind:"entree"|"llm"|"hitl"|"sortie", name, prompt?, web?}
         ou {kind:"group", name, items:[{name,prompt,web}]}
@@ -213,11 +248,11 @@ const vscode = acquireVsCodeApi();
    la ou les sorties de l'étape précédente ; un groupe = N agents en parallèle
    dont les sorties convergent vers l'étape suivante. */
 const KINDS = {
-  entree:{ico:"💡",label:"Entrée",c:"var(--entree)"},
-  llm:   {ico:"🤖",label:"Agent LLM",c:"var(--llm)"},
-  hitl:  {ico:"🧑",label:"Humain",c:"var(--human)"},
-  sortie:{ico:"📄",label:"Sortie",c:"var(--sortie)"},
-  group: {ico:"∥", label:"Groupe //",c:"var(--llm)"},
+  entree:{ico:ic("lightbulb"),label:"Entrée",c:"var(--entree)"},
+  llm:   {ico:ic("smart_toy"),label:"Agent LLM",c:"var(--llm)"},
+  hitl:  {ico:ic("person"),label:"Humain",c:"var(--human)"},
+  sortie:{ico:ic("description"),label:"Sortie",c:"var(--sortie)"},
+  group: {ico:ic("account_tree"),label:"Groupe //",c:"var(--llm)"},
 };
 
 const EXEMPLE={name:"ideas",steps:[
@@ -239,6 +274,8 @@ let runMap={}, stKey={}, outKey={}, tmKey={}, doneN=0, totalN=0;
 const undo=[], redo=[];
 const list=document.getElementById("list"), bLib=document.getElementById("bLib");
 const bRun=document.getElementById("bRun"), bAdd=document.getElementById("bAdd");
+const entreeInput=document.getElementById("entree");
+entreeInput.addEventListener("input",()=>{state.entree=entreeInput.value;persist();});
 
 function persist(){ vscode.setState(state); }
 function loadState(){ const s=vscode.getState();
@@ -271,8 +308,8 @@ function compile(){
     const push=(type,name,extra,k)=>{ const id="s"+nodes.length;
       nodes.push(Object.assign({id,type,name,x:60+(k||0)*210,y:40+i*150},extra));
       runMapBuild[id]=keyOf(i,k); cur.push(id); };
-    if(s.kind==="group") s.items.forEach((it,k)=>push("llm",it.name||"Agent",{prompt:it.prompt||"",web:!!it.web},k));
-    else if(s.kind==="llm") push("llm",s.name||"Agent",{prompt:s.prompt||"",web:!!s.web});
+    if(s.kind==="group") s.items.forEach((it,k)=>push("llm",it.name||"Agent",{prompt:it.prompt||"",web:!!it.web,full:!!it.full},k));
+    else if(s.kind==="llm") push("llm",s.name||"Agent",{prompt:s.prompt||"",web:!!s.web,full:!!s.full});
     else push(s.kind,s.name||KINDS[s.kind].label,{});
     for(const p of prev)for(const c of cur)edges.push([p,c]);
     prev=cur;
@@ -301,7 +338,10 @@ function decompile(data){ // ancien format {nodes,edges} → étapes par couches
 /* ---------- rendu ---------- */
 function render(){
   bLib.textContent=(state.name||"pipeline")+" ▾";
-  bRun.disabled=running||claudeMissing;
+  entreeInput.value=state.entree||"";
+  bRun.innerHTML=running?ic("stop")+" Stop":ic("play_arrow")+" Run";
+  bRun.classList.toggle("stop",running);
+  bRun.disabled=claudeMissing&&!running;
   list.innerHTML="";
   state.steps.forEach((s,i)=>list.appendChild(card(s,i)));
   if(!state.steps.length){
@@ -323,27 +363,20 @@ function card(s,i){
   el.style.setProperty("--nc",K.c);
   const st=s.kind==="group"?groupState(i,s):stKey[String(i)];
   if(st)el.classList.add(st);
+  const warn=s.kind==="llm"&&!(s.prompt||"").trim()
+    ?'<span class="chip warn" title="Prompt vide — un prompt par défaut sera utilisé">'+ic('warning')+'</span>':'';
   el.innerHTML=`<div class="row" role="button" tabindex="0"
       aria-expanded="${!!(open&&open.i===i&&open.k==null)}"
       aria-label="${esc(s.name||K.label)} — ${K.label}${st?" — "+st:""}">
     <span class="handle" draggable="true" title="Glisser pour réordonner">⠿</span>
     <span class="num">${i+1}</span><span class="ico">${K.ico}</span>
     <span class="nm">${esc(s.name||K.label)}</span>
-    ${s.kind==="llm"&&s.web?'<span class="chip">🌐</span>':''}
+    ${s.kind==="llm"&&s.web?'<span class="chip">'+ic('language')+'</span>':''}${s.kind==="llm"&&s.full?'<span class="chip" title="Setup Claude Code complet">'+ic('extension')+'</span>':''}${warn}
     <span class="tm">${s.kind==="group"?"":tmTxt(String(i))}</span>
-    <span class="st">${stMark(st)}</span></div>`;
+    <span class="st">${stMark(st)}</span><span class="caret">▸</span></div>`;
   const row=el.querySelector(".row");
   row.addEventListener("click",()=>{ open=(open&&open.i===i&&open.k==null)?null:{i}; render(); });
   row.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();row.click();} });
-  if(s.kind==="entree"){
-    const d=document.createElement("div"); d.className="inbox";
-    const inp=document.createElement("input");
-    inp.type="text"; inp.id="entree"; inp.placeholder="Sujet / question du run…"; inp.spellcheck=false;
-    inp.value=state.entree||"";
-    inp.addEventListener("input",()=>{state.entree=inp.value;persist();});
-    inp.addEventListener("click",e=>e.stopPropagation());
-    d.appendChild(inp); el.appendChild(d);
-  }
   if(s.kind==="group"){
     const g=document.createElement("div"); g.className="members";
     s.items.forEach((it,k)=>g.appendChild(member(s,i,it,k)));
@@ -360,13 +393,15 @@ function member(s,i,it,k){
   const key=keyOf(i,k), st=stKey[key];
   const w=document.createElement("div"); w.className="mem"; w.dataset.key=key;
   if(st)w.classList.add(st);
+  const warn=!(it.prompt||"").trim()
+    ?'<span class="chip warn" title="Prompt vide — un prompt par défaut sera utilisé">'+ic('warning')+'</span>':'';
   w.innerHTML=`<div class="row" role="button" tabindex="0"
       aria-expanded="${!!(open&&open.i===i&&open.k===k)}"
       aria-label="${esc(it.name||"Agent")} — agent du groupe${st?" — "+st:""}">
     <span class="handle" draggable="true" title="Glisser pour réordonner">⠿</span>
-    <span class="ico">🤖</span><span class="nm">${esc(it.name||"Agent")}</span>
-    ${it.web?'<span class="chip">🌐</span>':''}
-    <span class="tm">${tmTxt(key)}</span><span class="st">${stMark(st)}</span></div>`;
+    <span class="ico">${ic('smart_toy')}</span><span class="nm">${esc(it.name||"Agent")}</span>
+    ${it.web?'<span class="chip">'+ic('language')+'</span>':''}${it.full?'<span class="chip" title="Setup Claude Code complet">'+ic('extension')+'</span>':''}${warn}
+    <span class="tm">${tmTxt(key)}</span><span class="st">${stMark(st)}</span><span class="caret">▸</span></div>`;
   const row=w.querySelector(".row");
   row.addEventListener("click",e=>{e.stopPropagation();
     open=(open&&open.i===i&&open.k===k)?null:{i,k}; render();});
@@ -381,16 +416,18 @@ function editor(s,i,k){
   const d=document.createElement("div"); d.className="ed";
   let h='<label>Nom</label><input type="text" class="eName" spellcheck="false">';
   if(kind==="llm") h+='<label>Prompt</label><textarea class="ePrompt" spellcheck="false"></textarea>'
-    +'<label class="check"><input type="checkbox" class="eWeb"> 🌐 WebSearch autorisé</label>';
+    +'<label class="check"><input type="checkbox" class="eWeb"> '+ic('language')+' WebSearch autorisé</label>'
+    +'<label class="check"><input type="checkbox" class="eFull"> '+ic('extension')+' Setup Claude Code complet</label>'
+    +'<div class="note">Charge <b>skills, plugins, MCP et sous-agents</b> de ta config Claude Code, et laisse l\'agent utiliser tous les outils (Bash, Edit, MCP…) <b>sans confirmation</b>. Puissant mais à réserver aux pipelines de confiance. Décoché : agent en bac à sable (texte + WebSearch).</div>';
   if(kind==="hitl") h+='<div class="note">Met le run en pause : si l\'étape précédente produit <code>{"questions":[…]}</code> elles te sont posées, sinon commentaire libre. <kbd>Ctrl/Cmd+Entrée</kbd> pour continuer.</div>';
   if(kind==="sortie") h+='<div class="note">Écrit un <code>.md</code> (sorties de l\'étape précédente) à la racine du dossier ouvert.</div>';
   if(kind==="group") h+='<div class="note">Les agents du groupe tournent <b>en parallèle</b> sur l\'étape précédente ; leurs sorties <b>fusionnent</b> dans l\'étape suivante.</div>';
-  if(kind==="entree") h+='<div class="note">Le champ « sujet » de cette carte est le texte injecté au départ du pipeline.</div>';
+  if(kind==="entree") h+='<div class="note">Point de départ du pipeline. Écris le sujet du run dans la <b>barre en haut</b> ('+ic('lightbulb')+').</div>';
   const out=outKey[keyOf(i,k)];
   if(out!=null) h+='<details class="out"><summary>Dernière sortie</summary><pre>'+esc(String(out))+'</pre></details>';
   h+='<div class="acts"><button class="mv" data-d="-1" title="Monter">↑</button>'
     +'<button class="mv" data-d="1" title="Descendre">↓</button>'
-    +(kind==="llm"?'<button class="agsave" title="Enregistrer dans la bibliothèque d\'agents">💾 agent</button>':'')
+    +(kind==="llm"?'<button class="agsave" title="Enregistrer dans la bibliothèque d\'agents">'+ic('save')+' agent</button>':'')
     +'<button class="del">Supprimer</button></div>';
   d.innerHTML=h;
   d.addEventListener("click",e=>e.stopPropagation());
@@ -400,14 +437,15 @@ function editor(s,i,k){
     const row=d.parentElement&&d.parentElement.querySelector(".nm");
     if(row)row.textContent=o.name||KINDS[kind].label;});
   if(kind==="llm"){
-    const p=d.querySelector(".ePrompt"), w=d.querySelector(".eWeb");
-    p.value=o.prompt||""; w.checked=!!o.web;
+    const p=d.querySelector(".ePrompt"), w=d.querySelector(".eWeb"), fu=d.querySelector(".eFull");
+    p.value=o.prompt||""; w.checked=!!o.web; fu.checked=!!o.full;
     p.addEventListener("focus",snapshot);
     p.addEventListener("input",()=>{o.prompt=p.value;persist();});
     w.addEventListener("change",()=>{snapshot();o.web=w.checked;persist();render();});
+    fu.addEventListener("change",()=>{snapshot();o.full=fu.checked;persist();render();});
     const ag=d.querySelector(".agsave");
     if(ag)ag.onclick=()=>vscode.postMessage({type:"saveAgent",
-      data:{name:o.name||"Agent",prompt:o.prompt||"",web:!!o.web}});
+      data:{name:o.name||"Agent",prompt:o.prompt||"",web:!!o.web,full:!!o.full}});
   }
   d.querySelectorAll(".mv").forEach(b=>b.onclick=()=>{
     isM?moveMember(i,k,+b.dataset.d):move(i,+b.dataset.d);});
@@ -479,7 +517,10 @@ function openMenu(anchor,items){
   items.forEach(it=>{
     if(it==="-"){const s=document.createElement("div");s.className="sep";m.appendChild(s);return;}
     const b=document.createElement("button");
-    const l=document.createElement("span"); l.textContent=it.label; b.appendChild(l);
+    const left=document.createElement("span"); left.className="mlbl";
+    if(it.ico) left.insertAdjacentHTML("beforeend",ic(it.ico));
+    const t=document.createElement("span"); t.textContent=it.label; left.appendChild(t);
+    b.appendChild(left);
     if(it.sub){const s=document.createElement("span");s.className="sub";s.textContent=it.sub;b.appendChild(s);}
     b.onclick=()=>{closeMenu();it.on();};
     m.appendChild(b);
@@ -503,29 +544,31 @@ bLib.onclick=()=>openMenu(bLib,[
   {label:"Charger l'exemple",on:()=>loadPipe(EXEMPLE)},
 ]);
 document.getElementById("bMore").onclick=()=>openMenu(document.getElementById("bMore"),[
-  {label:"💾 Sauver le pipeline",on:save},
-  {label:"✎ Renommer",on:rename},
-  {label:"⧉ Exporter (copier le JSON)",on:()=>{
-    navigator.clipboard&&navigator.clipboard.writeText(JSON.stringify(compile(),null,2)).catch(()=>{});
-    toast("JSON copié — colle-le dans un fichier .json");}},
+  {ico:"save",label:"Sauver le pipeline",on:save},
+  {ico:"edit",label:"Renommer",on:rename},
+  {label:"⧉ Exporter (fichier .json)",on:()=>vscode.postMessage({type:"exportPipeline",name:state.name||"pipeline",pipeline:compile()})},
 ]);
-bAdd.onclick=()=>openMenu(bAdd,[
-  {label:"🤖 Agent LLM",on:()=>addStep({kind:"llm",name:"Agent",prompt:"",web:false})},
-  {label:"∥ Groupe parallèle",on:()=>addStep({kind:"group",name:"Groupe",
-    items:[{name:"Agent A",prompt:"",web:false},{name:"Agent B",prompt:"",web:false}]})},
-  {label:"🧑 Humain",on:()=>addStep({kind:"hitl",name:"Humain"})},
-  {label:"💡 Entrée",on:()=>addStep({kind:"entree",name:"Idée"},0)},
-  {label:"📄 Sortie",on:()=>addStep({kind:"sortie",name:"Rapport"})},
-  ...(AGENTS.length?["-"]:[]),
-  ...AGENTS.map(a=>({label:"🤖 "+(a.data.name||a.file),sub:a.data.web?"web":"",
-    on:()=>addStep({kind:"llm",name:a.data.name||"Agent",prompt:a.data.prompt||"",web:!!a.data.web})})),
-]);
+bAdd.onclick=()=>{
+  const hasEntree=state.steps.some(s=>s.kind==="entree");
+  const hasSortie=state.steps.some(s=>s.kind==="sortie");
+  openMenu(bAdd,[
+    {ico:"smart_toy",label:"Agent LLM",on:()=>addStep({kind:"llm",name:"Agent",prompt:"",web:false})},
+    {ico:"account_tree",label:"Groupe parallèle",on:()=>addStep({kind:"group",name:"Groupe",
+      items:[{name:"Agent A",prompt:"",web:false},{name:"Agent B",prompt:"",web:false}]})},
+    {ico:"person",label:"Humain",on:()=>addStep({kind:"hitl",name:"Humain"})},
+    ...(hasEntree?[]:[{ico:"lightbulb",label:"Entrée",on:()=>addStep({kind:"entree",name:"Idée"},0)}]),
+    ...(hasSortie?[]:[{ico:"description",label:"Sortie",on:()=>addStep({kind:"sortie",name:"Rapport"})}]),
+    ...(AGENTS.length?["-"]:[]),
+    ...AGENTS.map(a=>({ico:"smart_toy",label:(a.data.name||a.file),sub:a.data.full?"full":a.data.web?"web":"",
+      on:()=>addStep({kind:"llm",name:a.data.name||"Agent",prompt:a.data.prompt||"",web:!!a.data.web,full:!!a.data.full})})),
+  ]);
+};
 function menuAddMember(anchor,i){
   openMenu(anchor,[
-    {label:"🤖 Nouvel agent",on:()=>addMember(i,{name:"Agent",prompt:"",web:false})},
+    {ico:"smart_toy",label:"Nouvel agent",on:()=>addMember(i,{name:"Agent",prompt:"",web:false})},
     ...(AGENTS.length?["-"]:[]),
-    ...AGENTS.map(a=>({label:"🤖 "+(a.data.name||a.file),sub:a.data.web?"web":"",
-      on:()=>addMember(i,{name:a.data.name||"Agent",prompt:a.data.prompt||"",web:!!a.data.web})})),
+    ...AGENTS.map(a=>({ico:"smart_toy",label:(a.data.name||a.file),sub:a.data.full?"full":a.data.web?"web":"",
+      on:()=>addMember(i,{name:a.data.name||"Agent",prompt:a.data.prompt||"",web:!!a.data.web,full:!!a.data.full})})),
   ]);
 }
 function addStep(s,at){ if(running)return toast("Run en cours");
@@ -566,10 +609,10 @@ function rename(){
 
 /* ---------- exécution live ---------- */
 bRun.onclick=()=>{
-  if(running||claudeMissing)return;
+  if(running){ vscode.postMessage({type:"stop"}); setStatus("arrêt…",""); return; }
+  if(claudeMissing)return;
   const entree=(state.entree||"").trim();
-  if(!entree){ toast("Écris le sujet dans la carte Entrée");
-    const inp=document.getElementById("entree"); if(inp)inp.focus(); return; }
+  if(!entree){ toast("Écris le sujet dans la barre en haut"); entreeInput.focus(); return; }
   if(!state.steps.length)return toast("Pipeline vide");
   const pipeline=compile(); runMap=runMapBuild;
   stKey={};outKey={};tmKey={};doneN=0;totalN=pipeline.nodes.length;
@@ -590,9 +633,13 @@ function onEvent(ev){
   else if(ev.type==="pipeline_done"){ setStatus("✓ terminé ("+totalN+")","ok"); }
   else if(ev.type==="error"){ setStatus("⚠️ "+(ev.message||"erreur"),"err"); }
   else if(ev.type==="fatal"){ setStatus("⚠️ "+ev.error,"err"); toast("Échec : "+ev.error); }
+  else if(ev.type==="stopped"){
+    for(const k in stKey)if(stKey[k]==="running")delete stKey[k];
+    if(hitlCtx)closeHitl();
+    setStatus("■ arrêté",""); toast("Run arrêté"); }
   else if(ev.type==="closed"){ running=false; render();
     const s=document.getElementById("runStatus");
-    if(!s.classList.contains("ok")&&!s.classList.contains("err"))setStatus("terminé",""); }
+    if(!s.textContent)setStatus("terminé",""); }
 }
 
 /* ---------- HITL interactif ---------- */
@@ -607,7 +654,7 @@ function showHitl(payload){
   el.innerHTML='<h2>« '+esc(payload.name||"Humain")+' » attend tes réponses</h2>'
     +'<div class="hsub">'+(qs?qs.length+" question"+(qs.length>1?"s":"")+" · ":"")+'Ctrl/Cmd+Entrée pour continuer</div>'
     +fields
-    +'<div class="hacts"><button class="go" id="hgo">▶ Continuer</button>'
+    +'<div class="hacts"><button class="go" id="hgo">'+ic('play_arrow')+' Continuer</button>'
     +'<button class="cancel" id="hcancel">Passer (réponses vides)</button></div>';
   el.hidden=false; requestAnimationFrame(()=>el.classList.add("show"));
   const key=runMap[payload.id];

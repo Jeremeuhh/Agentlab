@@ -1,0 +1,31 @@
+name: Publish to VS Marketplace
+
+# Se déclenche quand tu publies une Release GitHub (ou manuellement).
+# Publie la version indiquée dans vscode-agentlab/package.json.
+# Prérequis (une seule fois) :
+#   1. Créer un éditeur sur https://marketplace.visualstudio.com/manage
+#   2. Générer un Personal Access Token Azure DevOps (scope: Marketplace > Manage)
+#   3. Repo → Settings → Secrets and variables → Actions → nouveau secret VSCE_PAT
+#   4. Dans package.json, remplacer "publisher": "local" par ton identifiant d'éditeur
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vscode-agentlab
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npx --yes @vscode/vsce publish --no-dependencies
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}

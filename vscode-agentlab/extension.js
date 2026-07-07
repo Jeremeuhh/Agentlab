@@ -47,17 +47,8 @@ function ensureDefaults(context) {
 function loadAgents(context) { return readJsonDir(libPath(context, "agents")); }
 function loadPipelines(context) { return readJsonDir(libPath(context, "pipelines")); }
 
-// ---- préflight : `claude` est-il dans le PATH ? (cross-OS, sans subprocess) ----
-function hasClaude() {
-  const exts = process.platform === "win32" ? ["claude.exe", "claude.cmd", "claude.bat", "claude"] : ["claude"];
-  for (const dir of (process.env.PATH || "").split(path.delimiter)) {
-    if (!dir) continue;
-    for (const e of exts) {
-      try { fs.accessSync(path.join(dir, e), fs.constants.X_OK); return true; } catch { /* pas ici */ }
-    }
-  }
-  return false;
-}
+// ---- préflight : `claude` trouvable ? (résolveur partagé avec le spawn) ----
+function hasClaude() { return engine.resolveClaude() != null; }
 
 function wsDir(context) {
   const f = vscode.workspace.workspaceFolders;
@@ -66,7 +57,7 @@ function wsDir(context) {
 
 // ---- provider de la vue webview ----
 class AgentLabViewProvider {
-  constructor(context) { this.context = context; this.view = null; this.hitl = new Map(); }
+  constructor(context) { this.context = context; this.view = null; this.hitl = new Map(); this.abort = null; }
 
   resolveWebviewView(view) {
     this.view = view;
@@ -88,6 +79,10 @@ class AgentLabViewProvider {
       if (!hasClaude()) this.post("noclaude", {});
     } else if (m.type === "run") {
       this.run(m.pipeline, m.entree || "");
+    } else if (m.type === "stop") {
+      if (this.abort) this.abort.abort();
+    } else if (m.type === "exportPipeline") {
+      this.exportPipeline(m);
     } else if (m.type === "savePipeline") {
       try {
         const dir = libPath(this.context, "pipelines");
@@ -119,18 +114,37 @@ class AgentLabViewProvider {
   }
 
   async run(pipeline, entree) {
+    const controller = new AbortController();
+    this.abort = controller;
     const askHuman = (payload) =>
       new Promise((resolve) => { this.hitl.set(payload.id, resolve); this.post("hitl_ask", payload); });
     const writeOutput = async (filename, content) =>
       fs.promises.writeFile(path.join(wsDir(this.context), filename), content, "utf8");
     const onEvent = (ev) => this.post("event", { event: ev });
     try {
-      await engine.runPipeline(pipeline, entree, { onEvent, askHuman, writeOutput });
+      await engine.runPipeline(pipeline, entree, { onEvent, askHuman, writeOutput, signal: controller.signal });
     } catch (e) {
-      this.post("event", { event: { type: "fatal", error: e.message } });
+      this.post("event", { event: e && e.aborted ? { type: "stopped" } : { type: "fatal", error: e.message } });
     } finally {
+      this.abort = null;
       this.hitl.clear();
       this.post("event", { event: { type: "closed" } });
+    }
+  }
+
+  async exportPipeline(m) {
+    let name = String(m.name || "pipeline").replace(/[^\w.à-ÿ-]+/gi, "-") || "pipeline";
+    if (!name.endsWith(".json")) name += ".json";
+    const uri = await vscode.window.showSaveDialog({
+      filters: { JSON: ["json"] }, saveLabel: "Exporter",
+      defaultUri: vscode.Uri.joinPath(vscode.Uri.file(wsDir(this.context)), name),
+    });
+    if (!uri) return;
+    try {
+      fs.writeFileSync(uri.fsPath, JSON.stringify(m.pipeline, null, 2));
+      this.post("toast", { text: "Exporté : " + path.basename(uri.fsPath) });
+    } catch (e) {
+      this.post("toast", { text: "Export impossible : " + e.message });
     }
   }
 }

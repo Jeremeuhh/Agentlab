@@ -15,6 +15,13 @@ test("buildClaudeArgs avec web ajoute --allowedTools WebSearch", () => {
   assert.ok(i >= 0 && a[i + 1] === "WebSearch");
 });
 
+test("buildClaudeArgs en mode complet : pas de sandbox, permissions bypass", () => {
+  const a = buildClaudeArgs(false, true);
+  assert.ok(!a.includes("--strict-mcp-config")); // MCP/skills/plugins chargés
+  const i = a.indexOf("--permission-mode");
+  assert.ok(i >= 0 && a[i + 1] === "bypassPermissions");
+});
+
 const { runPipeline } = require("../engine.js");
 
 // ask factice : renvoie un texte déterministe incluant le prompt reçu.
@@ -91,6 +98,27 @@ test("isolation d'erreur : un agent qui plante n'arrête pas le pipeline", async
   assert.ok(events.some((e) => e.type === "pipeline_done"));
   assert.equal(outputs.good, "ok");
   assert.ok(outputs.bad.includes("a échoué"));
+});
+
+test("stop : un signal abort interrompt le run avant pipeline_done", async () => {
+  const controller = new AbortController();
+  // ask qui ne se résout jamais tant qu'on n'a pas aborté
+  const hangAsk = (prompt, { signal } = {}) =>
+    new Promise((_, rej) =>
+      signal.addEventListener("abort", () => rej(Object.assign(new Error("x"), { aborted: true })), { once: true }));
+  const pipeline = {
+    name: "s",
+    nodes: [
+      { id: "e", type: "entree", name: "In" },
+      { id: "a", type: "llm", name: "A", prompt: "P" },
+    ],
+    edges: [["e", "a"]],
+  };
+  const events = [];
+  const p = runPipeline(pipeline, "x", { ask: hangAsk, signal: controller.signal, onEvent: (e) => events.push(e) });
+  controller.abort();
+  await assert.rejects(p, (e) => e.aborted === true);
+  assert.ok(!events.some((e) => e.type === "pipeline_done"));
 });
 
 test("HITL : le moteur attend askHuman puis injecte les réponses", async () => {
