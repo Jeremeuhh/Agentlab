@@ -31,6 +31,12 @@
     font-family:var(--sans);font-size:12px;-webkit-font-smoothing:antialiased;overflow:hidden}
   button{font:inherit;color:inherit}
   :focus-visible{outline:1px solid var(--ring);outline-offset:1px}
+  /* scrollbars aux couleurs VSCode (les barres Chrome par défaut trahissent la webview) */
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:var(--vscode-scrollbarSlider-background)}
+  ::-webkit-scrollbar-thumb:hover{background:var(--vscode-scrollbarSlider-hoverBackground)}
+  ::-webkit-scrollbar-thumb:active{background:var(--vscode-scrollbarSlider-activeBackground)}
+  ::-webkit-scrollbar-corner{background:transparent}
 
   /* ---- bandeau ---- */
   .top{display:flex;align-items:center;gap:6px;padding:6px 8px;
@@ -64,7 +70,9 @@
   .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
     border-radius:6px 0 0 6px;background:var(--nc,var(--line))}
   .card.hitl::before{background:repeating-linear-gradient(var(--nc) 0 4px,transparent 4px 8px)}
-  .row{display:flex;align-items:center;gap:6px;padding:7px 9px 7px 11px;cursor:pointer;min-height:30px}
+  .row{display:flex;align-items:center;gap:6px;padding:7px 9px 7px 11px;cursor:pointer;min-height:30px;
+    border-radius:5px}
+  .row:hover{background:var(--vscode-list-hoverBackground)}
   .handle{cursor:grab;color:var(--muted);font-size:11px;padding:0 2px;user-select:none;flex-shrink:0}
   .num{font-family:var(--mono);font-size:10px;color:var(--muted);width:13px;text-align:right;flex-shrink:0}
   .mem .num{width:auto;min-width:22px}  /* « 4.1 » plus large qu'un simple chiffre */
@@ -116,6 +124,9 @@
     background:var(--card-2);border:1px solid var(--hair);border-radius:5px;padding:5px 8px}
   .subbar input:focus-visible{outline:none;border-color:var(--ring);
     box-shadow:0 0 0 2px color-mix(in srgb,var(--ring) 30%,transparent)}
+  /* barre de progression du run (2px sous la barre sujet) */
+  #prog{height:2px;flex-shrink:0;background:color-mix(in srgb,var(--run) 18%,transparent)}
+  #prog i{display:block;height:100%;width:0;background:var(--run);transition:width 300ms ease-out}
 
   /* ---- éditeur déplié ---- */
   .ed{display:flex;flex-direction:column;gap:6px;padding:8px 10px 10px 31px;
@@ -135,8 +146,11 @@
   .note code,.note kbd{font-family:var(--mono);font-size:9.5px;background:var(--card-2);
     border:1px solid var(--hair);border-radius:3px;padding:0 3px}
   details.out{border:1px solid var(--hair);border-radius:5px;background:var(--card-2);overflow:hidden}
-  details.out>summary{cursor:pointer;padding:6px 8px;font-size:11px;font-weight:600;list-style:none}
+  details.out>summary{cursor:pointer;padding:6px 8px;font-size:11px;font-weight:600;list-style:none;
+    display:flex;align-items:center;justify-content:space-between;gap:6px}
   details.out>summary::-webkit-details-marker{display:none}
+  details.out .copy{background:none;border:none;cursor:pointer;padding:2px;color:var(--muted);line-height:0}
+  details.out .copy:hover{color:var(--ink)}
   details.out pre{margin:0;padding:8px;border-top:1px solid var(--hair);font-family:var(--mono);
     font-size:10.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:240px;overflow:auto}
   .acts{display:flex;gap:5px;margin-top:2px;flex-wrap:wrap}
@@ -214,8 +228,9 @@
 <div class="subbar">
   <span class="subico" title="Sujet injecté au départ du pipeline"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg></span>
   <input id="entree" type="text" spellcheck="false" placeholder="Sujet / question du run…">
-  <span id="runStatus"></span>
+  <span id="runStatus" aria-live="polite"></span>
 </div>
+<div id="prog" hidden><i></i></div>
 <div class="banner" id="banner" hidden><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg><span><code>claude</code> introuvable dans le PATH — l'édition marche, le <b>lancement est désactivé</b>.</span></div>
 <main class="list" id="list"></main>
 <footer class="foot"><button id="bAdd">＋ étape</button></footer>
@@ -242,6 +257,7 @@ const ICONS = {
   stop:"M6 6h12v12H6z",
   edit:"M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z",
   warning:"M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z",
+  content_copy:"M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z",
 };
 function ic(n){ return '<svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="'+ICONS[n]+'"/></svg>'; }
 
@@ -428,7 +444,9 @@ function editor(s,i,k){
   if(kind==="group") h+='<div class="note">Les agents du groupe tournent <b>en parallèle</b> sur l\'étape précédente ; leurs sorties <b>fusionnent</b> dans l\'étape suivante.</div>';
   if(kind==="entree") h+='<div class="note">Point de départ du pipeline. Écris le sujet du run dans la <b>barre en haut</b> ('+ic('lightbulb')+').</div>';
   const out=outKey[keyOf(i,k)];
-  if(out!=null) h+='<details class="out"><summary>Dernière sortie</summary><pre>'+esc(String(out))+'</pre></details>';
+  if(out!=null) h+='<details class="out"><summary>Dernière sortie'
+    +'<button class="copy" title="Copier la sortie">'+ic('content_copy')+'</button></summary>'
+    +'<pre>'+esc(String(out))+'</pre></details>';
   h+='<div class="acts"><button class="mv" data-d="-1" title="Monter">↑</button>'
     +'<button class="mv" data-d="1" title="Descendre">↓</button>'
     +(kind==="llm"?'<button class="agsave" title="Enregistrer dans la bibliothèque d\'agents">'+ic('save')+' agent</button>':'')
@@ -451,6 +469,9 @@ function editor(s,i,k){
     if(ag)ag.onclick=()=>vscode.postMessage({type:"saveAgent",
       data:{name:o.name||"Agent",prompt:o.prompt||"",web:!!o.web,full:!!o.full}});
   }
+  const cp=d.querySelector(".copy");
+  if(cp)cp.onclick=e=>{e.preventDefault();e.stopPropagation();
+    navigator.clipboard.writeText(String(out)).then(()=>toast("Sortie copiée"));};
   d.querySelectorAll(".mv").forEach(b=>b.onclick=()=>{
     isM?moveMember(i,k,+b.dataset.d):move(i,+b.dataset.d);});
   d.querySelector(".del").onclick=()=>{
@@ -620,9 +641,12 @@ bRun.onclick=()=>{
   if(!state.steps.length)return toast("Pipeline vide");
   const pipeline=compile(); runMap=runMapBuild;
   stKey={};outKey={};tmKey={};doneN=0;totalN=pipeline.nodes.length;
-  running=true; setStatus("▶ 0/"+totalN,""); render();
+  running=true; setStatus("▶ 0/"+totalN,""); render(); updateProg();
   vscode.postMessage({type:"run",pipeline,entree});
 };
+function updateProg(){ const p=document.getElementById("prog");
+  p.hidden=!running;
+  p.firstElementChild.style.width=totalN?Math.round(doneN/totalN*100)+"%":"0%"; }
 function onEvent(ev){
   const key=ev.id!=null?runMap[ev.id]:null;
   if(ev.type==="pipeline_start"){ doneN=0; setStatus("▶ 0/"+totalN,""); }
@@ -644,6 +668,7 @@ function onEvent(ev){
   else if(ev.type==="closed"){ running=false; render();
     const s=document.getElementById("runStatus");
     if(!s.textContent)setStatus("terminé",""); }
+  updateProg();
 }
 
 /* ---------- HITL interactif ---------- */
