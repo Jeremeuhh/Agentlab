@@ -58,6 +58,7 @@
   #bMore{background:none;border:1px solid var(--hair);border-radius:5px;padding:4px 8px;cursor:pointer;flex-shrink:0}
   #bMore:hover{border-color:var(--line)}
 
+  .banner[hidden]{display:none}  /* sinon .banner{display:flex} écrase l'attribut [hidden] (l'auteur gagne sur l'UA) */
   .banner{display:flex;gap:6px;align-items:flex-start;margin:8px 8px 0;
     background:color-mix(in srgb,var(--err) 8%,transparent);border:1px solid var(--err);
     border-radius:6px;padding:7px 9px;font-size:11px;line-height:1.4;flex-shrink:0}

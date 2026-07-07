@@ -17,6 +17,13 @@ test("le <script> du webview compile sans erreur de syntaxe", () => {
   assert.doesNotThrow(() => new vm.Script(m[1]), "syntaxe JS invalide dans le webview");
 });
 
+test("un élément en display:flex garde un guard [hidden] (sinon [hidden] est écrasé)", () => {
+  // .banner{display:flex} écrasait l'attribut [hidden] → bandeau toujours visible.
+  // Si on met display:flex sur .banner, il FAUT .banner[hidden]{display:none}.
+  if (/\.banner\{display:flex/.test(html))
+    assert.match(html, /\.banner\[hidden\]\{display:none\}/, "guard .banner[hidden] manquant");
+});
+
 test("chaque icône référencée par ic('…') existe dans ICONS", () => {
   const names = new Set();
   for (const [, n] of html.matchAll(/ic\(['"]([a-z_]+)['"]\)/g)) names.add(n);
