@@ -212,6 +212,48 @@
   #hitl .cancel{background:transparent;border:1px solid var(--hair);color:var(--muted);
     border-radius:5px;padding:6px 10px;font-size:12px;cursor:pointer}
 
+  /* ---- accueil (liste des pipelines) ---- */
+  .ghost{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px 5px;border-radius:5px;
+    line-height:0;flex-shrink:0}
+  .ghost:hover{background:var(--card-2);color:var(--ink)}
+  #home{display:none;flex-direction:column;height:100%;overflow:auto}
+  body[data-view="home"]>.top,
+  body[data-view="home"]>.subbar,
+  body[data-view="home"]>#prog,
+  body[data-view="home"]>#list,
+  body[data-view="home"]>.foot{display:none}
+  body[data-view="home"]>#home{display:flex}
+  .hhead{display:flex;align-items:center;gap:6px;padding:10px 10px 8px;flex-shrink:0}
+  .hhead .htitle{flex:1;font-weight:700;font-size:13px}
+  .hbtn{background:var(--card-2);border:1px solid var(--hair);border-radius:5px;padding:5px 9px;
+    font-size:11.5px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+  .hbtn:hover{border-color:var(--line)}
+  .hbtn.prim{background:var(--vscode-button-background);color:var(--vscode-button-foreground);border-color:transparent}
+  .hbtn.prim:hover{background:var(--vscode-button-hoverBackground)}
+  .resume{margin:0 10px 8px;padding:7px 10px;border:1px dashed var(--line);border-radius:6px;background:none;
+    color:var(--muted);font-size:11.5px;cursor:pointer;display:flex;align-items:center;gap:6px;
+    width:calc(100% - 20px);text-align:left}
+  .resume:hover{color:var(--ink);border-color:var(--ring)}
+  .plist{display:flex;flex-direction:column;gap:6px;padding:2px 10px 12px}
+  .pcard{display:flex;align-items:center;gap:4px;border:1px solid var(--hair);border-radius:7px;
+    background:var(--card);padding:8px 6px 8px 10px;transition:border-color 120ms ease-out}
+  .pcard:hover{border-color:var(--line)}
+  .pcard .pmain{flex:1;min-width:0;cursor:pointer;display:flex;flex-direction:column;gap:3px}
+  .pcard .pname{font-weight:650;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pcard .pmeta{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:10.5px}
+  .pcard .picons{display:flex;gap:2px;opacity:.85}
+  .pcard .picons .mi{width:13px;height:13px}
+  .pcard .prun,.pcard .pmore{background:none;border:none;cursor:pointer;color:var(--muted);
+    padding:5px;border-radius:5px;line-height:0;flex-shrink:0;font-size:11.5px}
+  .pcard .prun:hover,.pcard .pmore:hover{background:var(--card-2);color:var(--ink)}
+  .pcard .prun:hover{color:var(--ok)}
+  .pcard .del2{color:var(--err);line-height:1}
+  .hempty{margin:24px 10px;text-align:center;color:var(--muted);font-size:12px;line-height:1.6;
+    border:1px dashed var(--line);border-radius:8px;padding:18px 14px}
+  .hempty code{font-family:var(--mono);font-size:10.5px;background:var(--card-2);
+    border:1px solid var(--hair);border-radius:3px;padding:0 3px}
+  .hempty .row2{display:flex;gap:6px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+
   @media (prefers-reduced-motion:reduce){
     .card.running,.card.done,.card.error,.mem.running,.mem.done,.mem.error,.st .mk{animation:none!important}
     *{transition-duration:.01ms!important}
@@ -220,8 +262,9 @@
   }
 </style>
 </head>
-<body>
+<body data-view="home">
 <header class="top">
+  <button id="bHome" class="ghost" title="Accueil / mes pipelines" aria-label="Accueil"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></button>
   <button id="bLib" class="lib" title="Pipelines (charger / nouveau)">pipeline ▾</button>
   <button id="bRun" class="run" title="Lancer le pipeline"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg> Run</button>
   <button id="bMore" title="Sauver, exporter, renommer…">⋯</button>
@@ -235,6 +278,7 @@
 <div class="banner" id="banner" hidden><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg><span><code>claude</code> introuvable dans le PATH — l'édition marche, le <b>lancement est désactivé</b>.</span></div>
 <main class="list" id="list"></main>
 <footer class="foot"><button id="bAdd">＋ étape</button></footer>
+<main id="home"></main>
 <div class="menu" id="menu" hidden></div>
 <div class="hitl" id="hitl" role="dialog" aria-modal="true" aria-label="Questions de cadrage" hidden></div>
 <div class="toast" id="toast"></div>
@@ -259,6 +303,10 @@ const ICONS = {
   edit:"M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z",
   warning:"M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z",
   content_copy:"M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z",
+  upload:"M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z",
+  download:"M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2z",
+  delete:"M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z",
+  more_vert:"M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z",
 };
 function ic(n){ return '<svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><path d="'+ICONS[n]+'"/></svg>'; }
 
@@ -289,13 +337,15 @@ const EXEMPLE={name:"ideas",steps:[
   {kind:"sortie",name:"Rapport"},
 ]};
 
-let state, open=null, running=false, claudeMissing=false;
+let state, open=null, running=false, claudeMissing=false, view="home", pendingDel=null;
 let AGENTS=[], PIPES=[];
 let runMap={}, stKey={}, outKey={}, tmKey={}, doneN=0, totalN=0;
 const undo=[], redo=[];
 const list=document.getElementById("list"), bLib=document.getElementById("bLib");
 const bRun=document.getElementById("bRun"), bAdd=document.getElementById("bAdd");
+const home=document.getElementById("home"), bHome=document.getElementById("bHome");
 const entreeInput=document.getElementById("entree");
+bHome.onclick=()=>{ view="home"; pendingDel=null; render(); };
 entreeInput.addEventListener("input",()=>{state.entree=entreeInput.value;persist();});
 
 function persist(){ vscode.setState(state); }
@@ -358,6 +408,8 @@ function decompile(data){ // ancien format {nodes,edges} → étapes par couches
 
 /* ---------- rendu ---------- */
 function render(){
+  document.body.dataset.view=view;
+  if(view==="home") return renderHome();
   bLib.textContent=(state.name||"pipeline")+" ▾";
   entreeInput.value=state.entree||"";
   bRun.innerHTML=running?ic("stop")+" Stop":ic("play_arrow")+" Run";
@@ -371,6 +423,73 @@ function render(){
     const b=document.createElement("button"); b.textContent="Charger l'exemple";
     b.onclick=()=>loadPipe(EXEMPLE); w.appendChild(b); list.appendChild(w);
   }
+}
+/* ---------- accueil : liste des pipelines sauvegardés ---------- */
+function pipeMeta(d){
+  const steps=Array.isArray(d.steps)?d.steps:null;
+  const n=steps?steps.length:(Array.isArray(d.nodes)?d.nodes.length:0);
+  const icons=steps?steps.slice(0,7).map(s=>(KINDS[s.kind]||KINDS.llm).ico).join(""):"";
+  return {n,icons};
+}
+function renderHome(){
+  home.innerHTML="";
+  const head=document.createElement("div"); head.className="hhead";
+  head.innerHTML='<span class="htitle">AgentLab</span>'
+    +'<button class="hbtn" id="hImport">'+ic('upload')+' Importer</button>'
+    +'<button class="hbtn prim" id="hNew">＋ Nouveau</button>';
+  home.appendChild(head);
+  head.querySelector("#hNew").onclick=()=>{ view="editor"; newPipe(); };
+  head.querySelector("#hImport").onclick=()=>vscode.postMessage({type:"importPipeline"});
+
+  // reprendre le pipeline de travail en cours (évite de perdre un travail non sauvegardé)
+  if(state&&Array.isArray(state.steps)&&state.steps.length){
+    const r=document.createElement("button"); r.className="resume";
+    r.innerHTML=ic('play_arrow')+" Reprendre l'édition : <b>"+esc(state.name||"pipeline")+"</b>";
+    r.onclick=()=>{ view="editor"; render(); };
+    home.appendChild(r);
+  }
+
+  if(!PIPES.length){
+    const e=document.createElement("div"); e.className="hempty";
+    e.innerHTML="Aucun pipeline enregistré.<br>Crée-en un, charge l'exemple, ou importe un <code>.json</code>."
+      +'<div class="row2"><button class="hbtn" id="eEx">Charger l\'exemple</button>'
+      +'<button class="hbtn" id="eImp">'+ic('upload')+' Importer</button></div>';
+    home.appendChild(e);
+    e.querySelector("#eEx").onclick=()=>{ view="editor"; loadPipe(EXEMPLE); };
+    e.querySelector("#eImp").onclick=()=>vscode.postMessage({type:"importPipeline"});
+    return;
+  }
+
+  const wrap=document.createElement("div"); wrap.className="plist";
+  PIPES.forEach(p=>{
+    const d=p.data||{}, meta=pipeMeta(d);
+    const c=document.createElement("div"); c.className="pcard";
+    if(pendingDel===p.file){
+      c.innerHTML='<div class="pmain"><span class="pname">Supprimer « '+esc(d.name||p.file)+' » ?</span></div>'
+        +'<button class="pmore del2" data-a="del">Supprimer</button>'
+        +'<button class="pmore" data-a="cancel">Annuler</button>';
+      c.querySelector('[data-a="del"]').onclick=()=>{ vscode.postMessage({type:"deletePipeline",file:p.file}); pendingDel=null; };
+      c.querySelector('[data-a="cancel"]').onclick=()=>{ pendingDel=null; render(); };
+      wrap.appendChild(c); return;
+    }
+    c.innerHTML='<div class="pmain" role="button" tabindex="0">'
+      +'<span class="pname">'+esc(d.name||p.file.replace(/\.json$/,""))+'</span>'
+      +'<span class="pmeta">'+meta.n+' étape'+(meta.n>1?'s':'')
+      +(meta.icons?' <span class="picons">'+meta.icons+'</span>':'')+'</span></div>'
+      +'<button class="prun" title="Lancer (ouvre + sujet)">'+ic('play_arrow')+'</button>'
+      +'<button class="pmore" title="Plus">'+ic('more_vert')+'</button>';
+    const main=c.querySelector(".pmain");
+    const openIt=()=>{ view="editor"; loadPipe(d); };
+    main.onclick=openIt;
+    main.addEventListener("keydown",ev=>{ if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();openIt();} });
+    c.querySelector(".prun").onclick=()=>{ view="editor"; loadPipe(d); entreeInput.focus(); };
+    c.querySelector(".pmore").onclick=ev=>openMenu(ev.currentTarget,[
+      {ico:"download",label:"Exporter (.json)",on:()=>vscode.postMessage({type:"exportPipeline",name:d.name||p.file,pipeline:d})},
+      {ico:"delete",label:"Supprimer",on:()=>{ pendingDel=p.file; render(); }},
+    ]);
+    wrap.appendChild(c);
+  });
+  home.appendChild(wrap);
 }
 function groupState(i,s){
   const sts=s.items.map((_,k)=>stKey[keyOf(i,k)]);
@@ -741,7 +860,7 @@ addEventListener("keydown",e=>{
 addEventListener("message",e=>{
   const m=e.data;
   if(m.type==="agents"){AGENTS=m.agents||[];}
-  else if(m.type==="pipelines"){PIPES=m.pipelines||[];}
+  else if(m.type==="pipelines"){PIPES=m.pipelines||[]; if(view==="home")render();}
   else if(m.type==="event"){onEvent(m.event);}
   else if(m.type==="hitl_ask"){showHitl(m);}
   else if(m.type==="saved"){toast("Sauvé : "+m.name);}

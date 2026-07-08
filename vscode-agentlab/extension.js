@@ -107,6 +107,16 @@ class AgentLabViewProvider {
       } catch (e) {
         this.post("toast", { text: "Enregistrement impossible : " + e.message });
       }
+    } else if (m.type === "deletePipeline") {
+      try {
+        fs.rmSync(path.join(libPath(this.context, "pipelines"), path.basename(m.file || "")), { force: true });
+        this.post("pipelines", { pipelines: loadPipelines(this.context) });
+        this.post("toast", { text: "Pipeline supprimé" });
+      } catch (e) {
+        this.post("toast", { text: "Suppression impossible : " + e.message });
+      }
+    } else if (m.type === "importPipeline") {
+      importPipelineDialog(this.context, this);
     } else if (m.type === "hitl_answer") {
       const resolve = this.hitl.get(m.id);
       if (resolve) { this.hitl.delete(m.id); resolve(m.payload || {}); }
@@ -149,6 +159,29 @@ class AgentLabViewProvider {
   }
 }
 
+// Import d'un pipeline via dialogue natif → ajoute à la bibliothèque.
+// Partagé entre la commande palette et le bouton « Importer » de l'accueil.
+async function importPipelineDialog(context, provider) {
+  const uris = await vscode.window.showOpenDialog({
+    canSelectMany: false, filters: { JSON: ["json"] },
+    title: "Importer un pipeline AgentLab",
+  });
+  if (!uris || !uris[0]) return;
+  try {
+    const data = JSON.parse(fs.readFileSync(uris[0].fsPath, "utf8"));
+    if (!Array.isArray(data.nodes) && !Array.isArray(data.steps))
+      throw new Error("JSON de pipeline invalide (ni « nodes » ni « steps »)");
+    const dir = libPath(context, "pipelines");
+    fs.mkdirSync(dir, { recursive: true });
+    const name = path.basename(uris[0].fsPath);
+    fs.writeFileSync(path.join(dir, name), JSON.stringify(data, null, 2));
+    provider.post("pipelines", { pipelines: loadPipelines(context) });
+    provider.post("toast", { text: `Pipeline « ${data.name || name} » importé` });
+  } catch (e) {
+    vscode.window.showErrorMessage("Import impossible : " + e.message);
+  }
+}
+
 function renderHtml(context, webview) {
   const file = path.join(context.extensionPath, "media", "editor.html");
   let h = fs.readFileSync(file, "utf8");
@@ -173,25 +206,8 @@ function activate(context) {
       vscode.commands.executeCommand("workbench.view.extension.agentlab"))
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("agentlab.importPipeline", async () => {
-      const uris = await vscode.window.showOpenDialog({
-        canSelectMany: false, filters: { JSON: ["json"] },
-        title: "Importer un pipeline AgentLab",
-      });
-      if (!uris || !uris[0]) return;
-      try {
-        const data = JSON.parse(fs.readFileSync(uris[0].fsPath, "utf8"));
-        if (!Array.isArray(data.nodes)) throw new Error("JSON de pipeline invalide (pas de nodes)");
-        const dir = libPath(context, "pipelines");
-        fs.mkdirSync(dir, { recursive: true });
-        const name = path.basename(uris[0].fsPath);
-        fs.writeFileSync(path.join(dir, name), JSON.stringify(data, null, 2));
-        provider.post("pipelines", { pipelines: loadPipelines(context) });
-        vscode.window.showInformationMessage(`Pipeline « ${data.name || name} » importé dans la bibliothèque.`);
-      } catch (e) {
-        vscode.window.showErrorMessage("Import impossible : " + e.message);
-      }
-    })
+    vscode.commands.registerCommand("agentlab.importPipeline",
+      () => importPipelineDialog(context, provider))
   );
 }
 

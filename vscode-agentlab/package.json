@@ -2,7 +2,7 @@
   "name": "agentlab",
   "displayName": "AgentLab — orchestrateur d'agents",
   "description": "Atelier visuel de pipelines d'agents LLM, exécutés via votre abonnement Claude Code (claude -p).",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "publisher": "local",
   "license": "MIT",
   "repository": {

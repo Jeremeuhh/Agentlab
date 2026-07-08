@@ -24,6 +24,11 @@ test("un élément en display:flex garde un guard [hidden] (sinon [hidden] est �
     assert.match(html, /\.banner\[hidden\]\{display:none\}/, "guard .banner[hidden] manquant");
 });
 
+test("l'écran d'accueil existe : renderHome + vue home par défaut", () => {
+  assert.match(html, /function renderHome\(/, "renderHome manquant");
+  assert.match(html, /view\s*=\s*"home"/, "vue « home » par défaut manquante");
+});
+
 test("chaque icône référencée par ic('…') existe dans ICONS", () => {
   const names = new Set();
   for (const [, n] of html.matchAll(/ic\(['"]([a-z_]+)['"]\)/g)) names.add(n);
